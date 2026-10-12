@@ -4,11 +4,11 @@ import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getMigrations } from "better-auth/db/migration";
 import { createAuth } from "../lib/server/auth";
-import { database } from "../lib/server/database";
+import { database, query } from "../lib/server/database";
 import { readWorkspace, saveWorkspace } from "../lib/server/repository";
 import { emptyWorkspace } from "../lib/domain/defaults";
+import { initializeApplication } from "../lib/server/bootstrap";
 import { Pool } from "pg";
 
 test("Compte privé, session, isolation du stockage et sauvegardes concurrentes", async () => {
@@ -18,13 +18,13 @@ test("Compte privé, session, isolation du stockage et sauvegardes concurrentes"
   process.env.BETTER_AUTH_URL = "http://localhost:3000";
   delete process.env.DATABASE_URL;
   try {
-    const setup = createAuth(true);
-    const migrations = await getMigrations(setup.options);
-    await migrations.runMigrations();
     const password = randomBytes(24).toString("hex");
-    const created = await setup.api.signUpEmail({
-      body: { email: "test@example.com", name: "Test local", password },
-    });
+    assert.equal(
+      await initializeApplication({ email: "test@example.com", name: "Test local", password }),
+      "created",
+    );
+    const [user] = await query<{ id: string; email: string }>('SELECT id, email FROM "user"');
+    const created = { user };
     const privateAuth = createAuth();
     const denied = await privateAuth.handler(
       new Request("http://localhost:3000/api/auth/sign-up/email", {
@@ -35,6 +35,18 @@ test("Compte privé, session, isolation du stockage et sauvegardes concurrentes"
     );
     assert.equal(denied.status, 400);
     assert.equal((await denied.json()).code, "EMAIL_PASSWORD_SIGN_UP_DISABLED");
+    assert.equal(
+      await initializeApplication({
+        email: "test@example.com",
+        name: "Test local",
+        password: randomBytes(24).toString("hex"),
+      }),
+      "existing",
+    );
+    await assert.rejects(
+      () => initializeApplication({ email: "another@example.com", name: "Autre compte", password }),
+      /Un compte existe déjà/,
+    );
     const signedIn = await privateAuth.api.signInEmail({
       body: { email: "test@example.com", password },
     });

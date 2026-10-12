@@ -50,3 +50,11 @@ export async function initializeWorkspaceTable() {
     updated_at TEXT NOT NULL
   )`);
 }
+
+export async function closeDatabase() {
+  const db = globalDatabase.prospectDatabase;
+  if (!db) return;
+  if (db instanceof Pool) await db.end();
+  else db.close();
+  delete globalDatabase.prospectDatabase;
+}

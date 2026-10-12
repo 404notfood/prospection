@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Download, Upload, RotateCcw, Database } from "lucide-react";
+import { Download, Upload, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { workspaceSchema } from "@/lib/domain/schema";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 
 export function BackupPanel() {
-  const { data, update, demo, resetDemo, saving } = useWorkspace();
+  const { data, update, saving } = useWorkspace();
   const input = useRef<HTMLInputElement>(null);
   async function importBackup(file?: File) {
     if (!file) return;
@@ -25,7 +25,7 @@ export function BackupPanel() {
       if (file.size > 8_000_000) throw new Error("Le fichier dépasse 8 Mo.");
       const raw = JSON.parse(await file.text());
       if (raw.format !== "sillage-v1") throw new Error("Format de sauvegarde non reconnu.");
-      if (!demo && raw.demo)
+      if (raw.demo)
         throw new Error(
           "Une sauvegarde de démonstration ne peut pas être importée dans l’espace privé.",
         );
@@ -55,7 +55,6 @@ export function BackupPanel() {
               JSON.stringify(
                 {
                   format: "sillage-v1",
-                  demo,
                   exportedAt: new Date().toISOString(),
                   data,
                 },
@@ -88,26 +87,6 @@ export function BackupPanel() {
             </DialogClose>
           </DialogContent>
         </Dialog>
-        {demo && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <RotateCcw className="size-3.5" />
-                Réinitialiser la démo
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogTitle>Repartir de la démonstration initiale ?</DialogTitle>
-              <DialogDescription>
-                Vos essais dans ce navigateur seront remplacés par le jeu de données fictives
-                d’origine.
-              </DialogDescription>
-              <DialogClose asChild>
-                <Button onClick={resetDemo}>Réinitialiser</Button>
-              </DialogClose>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
       <input
         ref={input}

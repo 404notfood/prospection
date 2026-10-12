@@ -1,8 +1,8 @@
-import { emptyWorkspace } from "./defaults";
-import type { Workspace, ProspectStatus } from "./schema";
+import { emptyWorkspace } from "../../lib/domain/defaults";
+import type { Workspace, ProspectStatus } from "../../lib/domain/schema";
 
 // These companies and events are fictional. They never enter the private database.
-export function demoWorkspace(): Workspace {
+export function fixtureWorkspace(): Workspace {
   const data = emptyWorkspace();
   const createdAt = "2026-10-08T09:00:00.000Z";
   data.campaigns = [

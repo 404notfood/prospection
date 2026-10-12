@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Search, Menu, Command, ShieldCheck, FlaskConical } from "lucide-react";
+import { ChevronRight, Search, Menu, Command, ShieldCheck } from "lucide-react";
 import { Navigation, navigation } from "./navigation";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/
 import { GlobalSearch } from "./global-search";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { demo, basePath, saving } = useWorkspace();
+  const { basePath, saving } = useWorkspace();
   const pathname = usePathname();
   const [mobile, setMobile] = useState(false);
   const [search, setSearch] = useState(false);
@@ -61,26 +60,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <div className="h-5 w-px bg-border" />
             <span className="hidden items-center gap-1.5 text-[10px] text-muted-foreground sm:flex">
-              {demo ? (
-                <FlaskConical className="size-3.5" />
-              ) : (
-                <ShieldCheck className="size-3.5 text-emerald-700" />
-              )}
-              {saving ? "Enregistrement…" : demo ? "Démonstration" : "Espace privé"}
+              <ShieldCheck className="size-3.5 text-emerald-700" />
+              {saving ? "Enregistrement…" : "Espace privé"}
             </span>
             <span className="grid size-8 place-items-center rounded-full border border-emerald-200 bg-emerald-50 text-[10px] font-medium text-emerald-800">
               LP
             </span>
           </div>
         </header>
-        {demo && (
-          <div className="flex flex-wrap items-center justify-between gap-1 border-b bg-[#f0f2e8] px-5 py-2 text-[10px] text-[#67734f] sm:px-9">
-            <span>Données fictives · Vos essais sont conservés dans ce navigateur.</span>
-            <Link href="/connexion" className="font-semibold underline underline-offset-4">
-              Accéder à mon espace privé
-            </Link>
-          </div>
-        )}
         <main className="mx-auto max-w-[1600px] px-5 py-8 sm:px-9 sm:py-10">
           {children}
           <footer className="mt-10 flex flex-wrap justify-between gap-2 border-t pt-5 text-[10px] text-muted-foreground/70">

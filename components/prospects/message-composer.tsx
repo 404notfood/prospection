@@ -20,7 +20,7 @@ export function MessageComposer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data, demo, saving, logEvent } = useWorkspace();
+  const { data, saving, logEvent } = useWorkspace();
   const preferred = data.campaigns.find((c) => c.id === prospect.campaignId)?.templateId;
   const initial = data.templates.find((t) => t.id === preferred) || data.templates[0];
   const [templateId, setTemplateId] = useState(initial?.id || "");
@@ -69,11 +69,6 @@ export function MessageComposer({
           value={message.body}
           onChange={(v) => setMessage({ ...message, body: v })}
         />
-        {demo && (
-          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-            Démonstration : les adresses sont fictives. L’ouverture de la messagerie est désactivée.
-          </p>
-        )}
         {!allowed && (
           <p className="text-xs text-amber-700">
             Un prospect qualifié, sans opposition et avec un email identifié est nécessaire.
@@ -102,7 +97,7 @@ export function MessageComposer({
             Copier
           </Button>
           <Button
-            disabled={!allowed || demo || !message.subject || !message.body}
+            disabled={!allowed || !message.subject || !message.body}
             onClick={() => {
               window.location.href = mailto(prospect.email, message.subject, message.body);
             }}

@@ -54,7 +54,7 @@ export const navigation = [
 ];
 
 export function Navigation({ close }: { close?: () => void }) {
-  const { data, basePath, demo } = useWorkspace();
+  const { data, basePath } = useWorkspace();
   const pathname = usePathname();
   const router = useRouter();
   const due = data.prospects.filter(
@@ -151,11 +151,9 @@ export function Navigation({ close }: { close?: () => void }) {
         </span>
         <div className="flex-1">
           <p className="text-[11px] font-medium">{data.settings.name}</p>
-          <p className="mt-0.5 text-[9px] text-white/35">
-            {demo ? "Espace de démonstration" : "Compte privé"}
-          </p>
+          <p className="mt-0.5 text-[9px] text-white/35">Compte privé</p>
         </div>
-        {!demo && (
+        {
           <button
             aria-label="Se déconnecter"
             className="text-white/50 hover:text-white"
@@ -179,7 +177,7 @@ export function Navigation({ close }: { close?: () => void }) {
           >
             <LogOut className="size-4" />
           </button>
-        )}
+        }
       </div>
     </div>
   );

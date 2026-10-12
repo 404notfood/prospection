@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { blankProspect, emptyWorkspace } from "../lib/domain/defaults";
-import { demoWorkspace } from "../lib/domain/demo";
+import { fixtureWorkspace } from "./fixtures/workspace";
 import {
   counts,
   deduplicate,
@@ -14,7 +14,7 @@ import { exportProspects } from "../lib/domain/export";
 import { renderMessage } from "../lib/domain/messages";
 
 test("Les exemples sont valides, séparés et comptés sans indicateurs inventés", () => {
-  const data = demoWorkspace();
+  const data = fixtureWorkspace();
   assert.ok(workspaceSchema.safeParse(data).success);
   assert.equal(validateWorkspace(data), null);
   assert.deepEqual(counts(data.prospects), {
@@ -46,7 +46,7 @@ test("Un site non renseigné ne qualifie jamais une entreprise", () => {
 });
 
 test("Une opposition interdit toute prise de contact", () => {
-  const prospect = demoWorkspace().prospects[0];
+  const prospect = fixtureWorkspace().prospects[0];
   assert.equal(canContact(prospect), true);
   assert.equal(canContact({ ...prospect, opposed: true }), false);
   assert.ok(qualificationError({ ...prospect, opposed: true }));
@@ -70,7 +70,7 @@ test("Dédupliquer par SIREN, puis rapprocher un ajout manuel sans SIREN", () =>
 });
 
 test("Les sauvegardes rejettent les références cassées et les URL exécutables", () => {
-  const data = demoWorkspace();
+  const data = fixtureWorkspace();
   data.prospects[0].campaignId = "missing";
   assert.ok(validateWorkspace(data));
   data.prospects[0].website = "javascript:alert(1)";
@@ -91,7 +91,7 @@ test("L’export CSV conserve les accents et neutralise les formules Excel", () 
 });
 
 test("Les messages utilisent les faits conservés sans déduire un besoin ni un prix", () => {
-  const data = demoWorkspace();
+  const data = fixtureWorkspace();
   const prospect = data.prospects[0];
   const message = renderMessage(data.templates[0], prospect, data.settings);
   assert.ok(message.subject.includes(prospect.name));

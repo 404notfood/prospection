@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { authConfigured } from "@/lib/server/auth";
+import type { Metadata } from "next";
+import { LoginPage } from "@/components/auth/login-page";
 export const dynamic = "force-dynamic";
-export default function Home() {
-  redirect(authConfigured() ? "/app" : "/demo");
-}
+export const metadata: Metadata = { title: "Connexion" };
+export default LoginPage;

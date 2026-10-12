@@ -8,7 +8,7 @@ export default async function PrivateLayout({ children }: { children: React.Reac
   const session = await requireSession();
   const initial = await readWorkspace(session.user.id);
   return (
-    <WorkspaceProvider demo={false} initial={initial}>
+    <WorkspaceProvider initial={initial}>
       <AppShell>{children}</AppShell>
     </WorkspaceProvider>
   );

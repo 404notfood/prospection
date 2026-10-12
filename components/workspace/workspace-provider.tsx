@@ -1,8 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { toast } from "sonner";
-import { demoWorkspace } from "@/lib/domain/demo";
 import {
   workspaceSchema,
   type Prospect,
@@ -12,76 +11,47 @@ import {
 } from "@/lib/domain/schema";
 import { qualificationError, validateWorkspace } from "@/lib/domain/prospects";
 
-const DEMO_KEY = "sillage:demo:v1";
 interface WorkspaceContext {
   data: Workspace;
-  demo: boolean;
   saving: boolean;
   basePath: string;
   update: (change: (data: Workspace) => Workspace, message?: string) => Promise<boolean>;
   saveProspect: (prospect: Prospect) => Promise<boolean>;
   logEvent: (event: Omit<TimelineEvent, "id" | "createdAt">) => Promise<boolean>;
-  resetDemo: () => void;
 }
 const Context = createContext<WorkspaceContext | null>(null);
 
 export function WorkspaceProvider({
   children,
   initial,
-  demo,
 }: {
   children: React.ReactNode;
   initial: WorkspaceSnapshot;
-  demo: boolean;
 }) {
   const [snapshot, setSnapshot] = useState(initial);
   const [saving, setSaving] = useState(false);
   const current = useRef(initial);
   const busy = useRef(false);
-  const [loaded, setLoaded] = useState(!demo);
-
-  useEffect(() => {
-    if (!demo) return;
-    try {
-      const saved = localStorage.getItem(DEMO_KEY);
-      if (saved) {
-        const parsed = workspaceSchema.safeParse(JSON.parse(saved));
-        if (parsed.success && !validateWorkspace(parsed.data)) {
-          current.current = { data: parsed.data, revision: 0 };
-          setSnapshot(current.current);
-        }
-      }
-    } catch {
-      toast.error(
-        "Le stockage local n’est pas disponible. Les modifications peuvent ne pas être conservées.",
-      );
-    }
-    setLoaded(true);
-  }, [demo]);
 
   async function update(change: (data: Workspace) => Workspace, message?: string) {
-    if (busy.current || !loaded) return false;
+    if (busy.current) return false;
     busy.current = true;
     setSaving(true);
     try {
       const nextData = workspaceSchema.parse(change(structuredClone(current.current.data)));
       const error = validateWorkspace(nextData);
       if (error) throw new Error(error);
-      let revision = current.current.revision + 1;
-      if (demo) localStorage.setItem(DEMO_KEY, JSON.stringify(nextData));
-      else {
-        const response = await fetch("/api/workspace", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: nextData,
-            revision: current.current.revision,
-          }),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "La sauvegarde a échoué.");
-        revision = result.revision;
-      }
+      const response = await fetch("/api/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: nextData,
+          revision: current.current.revision,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "La sauvegarde a échoué.");
+      const revision: number = result.revision;
       current.current = { data: nextData, revision };
       setSnapshot(current.current);
       if (message) toast.success(message);
@@ -139,31 +109,15 @@ export function WorkspaceProvider({
     }, "Action consignée dans l’historique");
   }
 
-  function resetDemo() {
-    if (!demo) return;
-    const data = demoWorkspace();
-    try {
-      localStorage.setItem(DEMO_KEY, JSON.stringify(data));
-    } catch {
-      toast.error("Impossible de réinitialiser le stockage local.");
-      return;
-    }
-    current.current = { data, revision: 0 };
-    setSnapshot(current.current);
-    toast.success("Démonstration réinitialisée");
-  }
-
   return (
     <Context.Provider
       value={{
         data: snapshot.data,
-        demo,
         saving,
-        basePath: demo ? "/demo" : "/app",
+        basePath: "/app",
         update,
         saveProspect,
         logEvent,
-        resetDemo,
       }}
     >
       {children}

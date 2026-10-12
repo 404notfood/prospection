@@ -1,5 +1,5 @@
 {
-  "name": "site",
+  "name": "prospection",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,12 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "types": "tsc --noEmit",
+    "types": "next typegen && tsc --noEmit",
     "account:setup": "tsx scripts/setup-account.ts",
     "test": "tsx --test tests/*.test.ts",
     "format": "prettier --write app components lib scripts tests README.md next.config.ts",
     "format:check": "prettier --check app components lib scripts tests README.md next.config.ts",
-    "check:lines": "tsx scripts/check-lines.ts"
+    "check:lines": "tsx scripts/check-lines.ts",
+    "db:setup": "tsx scripts/setup-database.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.7",

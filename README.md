@@ -1,126 +1,144 @@
 # Sillage · Prospection 404NotFood
 
-Application personnelle de prospection, réalisée à partir de `../CADRAGE.md`.
-Next.js 16, React, TypeScript, Tailwind CSS, shadcn/ui, Magic UI et BetterAuth.
+Application privée Next.js / TypeScript avec BetterAuth, PostgreSQL,
+shadcn/ui et Magic UI. L’accueil affiche directement la connexion.
+Il n’y a plus de parcours de démonstration ni d’inscription publique.
+
+## Dépôt GitHub
+
+Dépôt : https://github.com/404notfood/prospection — branche `main`.
+
+Publier **le contenu du dossier `site` à la racine du dépôt** : `package.json`,
+`package-lock.json`, `app`, `components`, `lib`, `scripts`, `tests`, etc.
+Le générateur est configuré avec un dossier Next.js `.` et un build à la racine.
+Ne pas publier `.env.local`, `.env.production`, les bases locales ou `node_modules`.
+
+## Générateur VPS préparé
+
+Le formulaire https://404notfood.fr/generateur/project.html est configuré ainsi :
+
+| Paramètre                  | Valeur                                                     |
+| -------------------------- | ---------------------------------------------------------- |
+| Projet / utilisateur Linux | `prospection`                                              |
+| Sources                    | Git · `https://github.com/404notfood/prospection` · `main` |
+| Domaine                    | `prospection.404notfood.fr`                                |
+| Stack                      | Next.js SSR · sortie standard                              |
+| Dossier Next.js            | `.`                                                        |
+| Node / gestionnaire        | Node 24 · npm                                              |
+| Supervision                | systemd · processus `prospection`                          |
+| Port                       | Automatique, uniquement sur `127.0.0.1`                    |
+| Base                       | PostgreSQL · base et rôle `prospection`                    |
+| Connexion                  | `DATABASE_URL` construite automatiquement                  |
+| Fichier de production      | `.env.production`                                          |
+| Modèle                     | `.env.example`                                             |
+| Origine d’authentification | `https://prospection.404notfood.fr`                        |
+| Compte privé et certificat | `contact@404notfood.fr`                                    |
+| Initialisation avant build | `npm run db:setup`                                         |
+| Vérifications              | `types`, `lint`, `test`, `check:lines`                     |
+| Sauvegardes                | PostgreSQL et configuration chiffrés, rétention 14 jours   |
+
+Le générateur crée les mots de passe DB, `BETTER_AUTH_SECRET`, `OWNER_PASSWORD`
+et la clé de chiffrement des sauvegardes **sur le VPS**. Aucun secret n’est
+saisi dans le formulaire ou exporté dans le bundle.
+
+Le profil n’utilise ni Prisma, ni Redis, ni processus IA, ni service mail intégré.
+Les tables BetterAuth et la table des données de prospection sont créées par
+`db:setup`. Le compte privé est créé à la première installation ; les passages
+suivants conservent son mot de passe. Un email différent d’un compte déjà présent
+interrompt l’initialisation au lieu d’ajouter un autre compte.
+
+## Installation sur le VPS
+
+1. Pousser les fichiers du projet à la racine de la branche `main` sur GitHub.
+2. Faire pointer le DNS de `prospection.404notfood.fr` vers le VPS.
+3. Sur la dernière page du générateur, télécharger puis décompresser le ZIP.
+4. Sur le VPS, dans le dossier du bundle :
+
+```bash
+sudo bash ./install.sh --preflight
+sudo bash ./install.sh
+```
+
+Le socle du générateur doit déjà fournir Debian 13, Node 24, PostgreSQL, Nginx,
+Certbot et `pg_dump`. Si le dépôt est privé, préparer l’accès Git du compte Linux
+`prospection` avant le clone ; aucun token n’est inséré dans le générateur.
+
+Le script crée la base dédiée, remplit `.env.production`, installe les dépendances,
+initialise les tables et le compte, effectue les contrôles, compile et démarre le site.
+L’URL de connexion sera https://prospection.404notfood.fr.
+
+Le mot de passe initial du **compte web** est la valeur `OWNER_PASSWORD` du fichier
+`/home/prospection/app/.env.production`, lisible uniquement sur le VPS par les
+comptes autorisés. Il n’est pas affiché dans les journaux d’installation.
+Le mot de passe Linux SSH/SFTP demandé par le générateur est un accès distinct.
+
+Les sauvegardes chiffrées restent locales dans
+`/home/prospection/backups/postgresql`. Une destination extérieure pourra être
+configurée ensuite. Conserver la clé `BACKUP_ENCRYPTION_KEY` pour les restaurer.
+Avant une mise à jour faisant évoluer le schéma, effectuer une sauvegarde valide.
+Le générateur conserve un dépôt déjà cloné : les `git pull` restent manuels.
 
 ## Démarrage local
 
 ```bash
 npm install
+```
+
+Copier `.env.example` vers `.env.local`, conserver
+`BETTER_AUTH_URL=http://localhost:3000`, définir `BETTER_AUTH_SECRET` aléatoire
+(32 caractères minimum), `OWNER_EMAIL` et `OWNER_PASSWORD` (12 caractères minimum).
+`OWNER_NAME` correspond au nom du compte. `DATABASE_URL` vide utilise SQLite en
+local ; renseigner une URL PostgreSQL pour utiliser une base locale dédiée.
+
+```bash
+npm run db:setup
 npm run dev
 ```
 
-Ouvrir http://localhost:3000. Sans configuration d’authentification, l’accueil
-redirige vers `/demo` : 24 entreprises fictives, trois campagnes et des exemples
-de prestations. Les essais sont enregistrés uniquement dans le navigateur.
-Les données de démonstration ne sont jamais insérées dans la base privée.
+Ouvrir http://localhost:3000 : le formulaire de connexion est directement visible.
+Un compte authentifié retrouve `/app`. Les données des prospects démarrent vides.
+Sans initialisation des variables et de la base, la connexion ne peut pas aboutir.
 
-## Créer le compte privé
+L’ancien script interactif `npm run account:setup` reste disponible ; il utilise
+la même initialisation et peut demander l’email s’il n’est pas configuré.
+En production, `DATABASE_URL` est requis sauf installation SQLite explicitement
+configurée via `SQLITE_PATH`. PostgreSQL est le stockage choisi pour ce VPS.
 
-1. Copier `.env.example` vers `.env.local`.
-2. Définir `BETTER_AUTH_URL` avec l’URL exacte de l’application.
-3. Générer `BETTER_AUTH_SECRET` avec `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-4. Choisir le stockage : SQLite par défaut en développement ; PostgreSQL via
-   `DATABASE_URL` pour le VPS. Ne pas réutiliser la base du projet SEO.
-5. Fournir `OWNER_PASSWORD` dans l’environnement du terminal, puis lancer
-   `npm run account:setup`. Le script demande l’adresse email, crée les tables
-   BetterAuth et le compte. Le mot de passe doit avoir au moins 12 caractères.
-6. Effacer `OWNER_PASSWORD` de l’environnement après le setup, puis redémarrer
-   le serveur si la configuration a changé.
+## Fonctions de la V1
 
-Exemple PowerShell pour saisir le mot de passe sans l’afficher :
+- Compteurs calculés, campagnes et historique des échanges.
+- Campagnes avec ciblage géographique, critères, offre, modèle et taille de lot.
+- Liste des prospects : recherche, filtres, tri, pagination et export CSV.
+- Fiches : identité, coordonnées, sources, vérifications, notes et relances.
+- Qualification séquentielle par lots et reprise des informations conservées.
+- Modèles d’email, aperçu, personnalisation et ouverture de la messagerie.
+- Catalogue : tarifs indicatifs, conditions et disponibilité des prestations.
+- Paramètres : identité, signature, source et sauvegardes JSON.
 
-```powershell
-$ownerSecurePassword = Read-Host 'Mot de passe du compte privé' -AsSecureString
-$env:OWNER_PASSWORD = [System.Net.NetworkCredential]::new('', $ownerSecurePassword).Password
-npm run account:setup
-Remove-Item Env:OWNER_PASSWORD
-```
+Une qualification exige une date de vérification et des faits observés.
+Un champ web vide reste à vérifier. Les oppositions bloquent les contacts.
+L’ouverture de la messagerie ne consigne pas automatiquement un envoi.
+Les emails et appels effectués sont enregistrés manuellement.
 
-L’inscription publique est désactivée dans l’application. Seul le script local
-permet de créer un compte. Aucune valeur de secret ni aucun identifiant réel
-n’est préinstallé. `/connexion` affiche la marche à suivre tant que le secret
-n’est pas configuré ; un secret configuré nécessite aussi les tables et le compte.
+L’adaptateur de découverte utilise l’API Géo et l’API Recherche d’entreprises,
+uniquement après activation de la source dans les paramètres. Les codes NAF de
+la campagne déterminent le filtre d’activité réel. Les établissements ouverts
+dans la zone sont rapprochés de leur entreprise ; les SIREN et l’identité évitent
+les doublons. Les sites, emails et téléphones ne sont jamais inventés.
 
-## Parcours de la V1
+## Organisation et vérifications
 
-- Vue d’ensemble : compteurs calculés, campagnes et derniers échanges.
-- Campagnes : configuration en trois étapes, critères, prestation, modèle,
-  taille du lot, pause et reprise.
-- Prospects : recherche, filtres, tri, pagination, sélection et export CSV.
-- Fiches : identité, coordonnées, sources, vérifications, notes, statuts,
-  relances et opposition à la prospection.
-- Qualification : ouverture séquentielle d’un lot. Une entreprise incertaine
-  reste à examiner. La sauvegarde conserve chaque vérification effectuée.
-- Emails : modèles, variables, aperçu, personnalisation et ouverture de la
-  messagerie locale. L’envoi est ensuite consigné manuellement.
-- Prestations : tarifs indicatifs, conditions et activation dans les campagnes.
-- Paramètres : identité, signature, taille des lots, source et sauvegardes JSON.
+`app` contient les routes ; `components` les écrans et composants ; `lib/domain`
+les schémas et règles métier ; `lib/server` l’authentification, la base et la recherche.
+`scripts` contient l’initialisation et les contrôles ; `tests` utilise des données
+fictives internes et une base temporaire. Ces données ne sont pas accessibles
+par une route et ne sont pas insérées dans la base du projet.
 
-Les oppositions bloquent les actions de contact. Un prospect ne peut pas être
-qualifié sans date de vérification, faits observés et présence numérique examinée.
-Les exports CSV neutralisent les formules pour une ouverture dans un tableur.
-Une restauration remplace l’espace courant après une confirmation dans l’interface.
-Une sauvegarde marquée comme démonstration est refusée dans l’espace privé.
-
-## Découverte géographique
-
-L’adaptateur optionnel utilise deux sources publiques :
-
-- [API Géo](https://geo.api.gouv.fr/decoupage-administratif/communes) pour la commune et son centre.
-- [API Recherche d’entreprises](https://recherche-entreprises.api.gouv.fr/docs/) pour les établissements.
-
-Il reste désactivé tant qu’il n’est pas activé puis enregistré dans les paramètres.
-Les appels sont disponibles uniquement dans l’espace authentifié. Renseigner
-les codes NAF dans la campagne, une ville complète et un rayon de 1 à 50 km.
-Les noms d’activités décrivent la campagne ; les codes NAF déterminent le filtre
-réel de la source. Un nom de commune ambigu est refusé.
-
-Chaque clic récupère une page de 1 à 25 entreprises. Seuls les établissements
-ouverts correspondant aux codes NAF dans la réponse géographique sont retenus.
-Le siège peut être dans une autre ville : il n’est pas utilisé à la place de
-l’établissement correspondant. Les SIREN et l’identité normalisée évitent les
-doublons, y compris lorsqu’une entreprise a déjà été ajoutée manuellement.
-
-La page suivante est enregistrée avec les données du lot ; si la sauvegarde échoue,
-le même lot peut être rejoué sans perdre les résultats précédents. Les résultats
-peuvent évoluer entre deux appels : la couverture n’est pas exhaustive.
-Un champ web vide reste « À vérifier ». Aucun email, téléphone ou site n’est inventé.
-La V1 ne réalise pas d’enrichissement automatique et ne lance pas d’audit SEO.
-
-## Organisation du code
-
-```text
-app/                    Routes, layouts, endpoints et métadonnées
-components/auth/        Connexion
-components/shell/       Navigation, cadre et recherche globale
-components/dashboard/   Vue d’ensemble, compteurs et activité
-components/campaigns/   Assistant, ciblage et traitement des lots
-components/prospects/   Table, fiche, qualification et composition des emails
-components/library/     Catalogue et modèles
-components/settings/    Paramètres et sauvegardes
-components/shared/      Petits composants réutilisables
-components/ui/          Sources shadcn/ui et Magic UI adaptées au thème
-components/workspace/   État partagé et accès à la persistance
-lib/domain/             Types, schémas Zod et règles métier
-lib/server/             Authentification, stockage et découverte
-scripts/                Création du compte et contrôle des lignes
- tests/                 Tests de qualification, découverte, stockage et auth
-```
-
-Tous les fichiers source sont limités à 500 lignes. Les composants des deux espaces
-sont partagés ; seules l’origine des données et la méthode de sauvegarde changent.
-Les secrets et le stockage restent côté serveur. Les schémas et règles métier sont
-vérifiés également sur le serveur avant toute sauvegarde.
-
-Le stockage privé est un instantané JSON validé par compte dans une table SQL,
-avec un numéro de révision. Une mise à jour concurrente dans un autre onglet est
-refusée plutôt que d’écraser silencieusement les changements. Ce choix simple est
-adapté à l’usage individuel initial. Pour un volume plus important, extraire les
-entités dans des tables et ajouter des workers durables avant l’automatisation.
-Une seule recherche s’exécute à la fois par compte dans le processus Node de la V1.
-
-## Vérifications
+Toutes les sauvegardes privées passent par la base SQL, avec validation serveur
+et numéro de révision pour refuser les écrasements entre onglets. Le stockage
+métier est actuellement un instantané JSON par compte dans une table PostgreSQL,
+aux côtés des tables relationnelles BetterAuth. Il pourra être normalisé lorsque
+les volumes et les automatisations le justifieront.
 
 ```bash
 npm run types
@@ -131,37 +149,12 @@ npm run format:check
 npm run build
 ```
 
-Les tests utilisent une base temporaire, des identifiants aléatoires et des réponses
-mockées pour la découverte. Ils ne modifient pas les données de l’utilisateur.
-Ils vérifient notamment le refus d’inscription publique, une session signée,
-l’isolation par compte, les conflits de sauvegarde, les oppositions et le rapprochement
-avec le bon établissement local.
+Tous les fichiers source restent sous 500 lignes. Les tests de stockage sont
+exécutés sous SQLite ; l’intégration PostgreSQL nécessite la base dédiée réelle.
+Le lockfile conserve les dépendances natives des plateformes Linux attendues
+par le générateur. Les alertes npm de la chaîne ESLint héritée du starter sont
+limitées aux dépendances de développement (`npm audit --omit=dev` est propre).
 
-L’adaptateur PostgreSQL est fourni mais nécessite une base configurée pour sa
-validation d’intégration. Les tests automatisés de stockage tournent sous SQLite.
-La chaîne ESLint héritée du starter présente des alertes npm sur `braces` ; aucune
-alerte n’apparaît dans `npm audit --omit=dev`. Aucun retour à une ancienne version
-de Next.js n’est effectué pour masquer ces alertes.
-
-## Déploiement sur le VPS
-
-Déploiement natif Next.js selon le générateur personnel :
-
-```bash
-npm ci
-npm run build
-npm run start
-```
-
-Configurer `BETTER_AUTH_URL` avec le domaine HTTPS public, un secret stable et
-`DATABASE_URL` avec une base dédiée. Créer le compte avec le script sur le VPS.
-Le serveur utilise une connexion PostgreSQL directe ; le proxy doit transmettre
-correctement l’hôte et le protocole. Utiliser un seul processus au départ ; les
-limites de recherche sont conservées en mémoire dans chaque processus.
-Sauvegarder PostgreSQL régulièrement et garder les secrets hors du dépôt.
-En production, SQLite nécessite `SQLITE_PATH` explicite et un volume persistant.
-
-Les emails automatisés, l’agent IA, BullMQ/Redis, l’intégration SEO et les comptes SaaS
-restent dans les phases ultérieures du cadrage. Aucun déploiement n’est effectué
-par la réalisation locale de cette V1.
-"# prospection" 
+L’agent IA, l’envoi automatique, BullMQ/Redis et l’intégration SEO restent dans
+les phases ultérieures du cadrage. Aucun déploiement sur le VPS n’a été exécuté
+pendant la préparation du projet et du formulaire.

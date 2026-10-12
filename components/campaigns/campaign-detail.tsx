@@ -21,7 +21,7 @@ import { CampaignWizard } from "./campaign-wizard";
 import { ProspectSheet } from "@/components/prospects/prospect-sheet";
 
 export function CampaignDetail({ campaign }: { campaign: Campaign }) {
-  const { data, update, saving, demo, basePath } = useWorkspace();
+  const { data, update, saving, basePath } = useWorkspace();
   const [searching, setSearching] = useState(false);
   const [edit, setEdit] = useState(false);
   const [queue, setQueue] = useState<string[]>([]);
@@ -33,12 +33,6 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   const current = data.prospects.find((p) => p.id === queue[position]) || null;
 
   async function search() {
-    if (demo) {
-      toast.info(
-        "La découverte réelle est disponible dans l’espace privé après activation de la source. Les données de cette démo restent fictives.",
-      );
-      return;
-    }
     setSearching(true);
     try {
       const response = await fetch("/api/discovery", {

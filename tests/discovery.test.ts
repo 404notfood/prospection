@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { demoWorkspace } from "../lib/domain/demo";
+import { fixtureWorkspace } from "./fixtures/workspace";
 import { discover } from "../lib/server/discovery";
 
 test("La découverte garde les établissements ouverts dans la zone et ne fabrique pas de coordonnées", async () => {
@@ -48,7 +48,7 @@ test("La découverte garde les établissements ouverts dans la zone et ne fabriq
     });
   }) as typeof fetch;
   try {
-    const campaign = demoWorkspace().campaigns[0];
+    const campaign = fixtureWorkspace().campaigns[0];
     const result = await discover(campaign);
     assert.equal(result.prospects.length, 1);
     assert.equal(result.prospects[0].city, "Laval");

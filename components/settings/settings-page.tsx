@@ -17,7 +17,7 @@ export function SettingsPage() {
 }
 
 function SettingsEditor() {
-  const { data, update, saving, demo } = useWorkspace();
+  const { data, update, saving } = useWorkspace();
   const [draft, setDraft] = useState(data.settings);
   async function save() {
     const parsed = settingsSchema.safeParse(draft);
@@ -118,12 +118,6 @@ function SettingsEditor() {
             >
               Documentation de la source ↗
             </a>
-            {demo && (
-              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-[10px] leading-5 text-amber-800">
-                En démonstration, ce réglage ne lance aucun appel à la source. Connectez-vous à
-                votre espace privé pour utiliser la découverte.
-              </p>
-            )}
             <div className="mt-5 space-y-3 border-t pt-5">
               {["Fournisseur IA", "Envoi d’emails intégré", "Audits SEO automatiques"].map(
                 (label) => (
@@ -144,7 +138,7 @@ function SettingsEditor() {
             </p>
             <div className="mt-5 flex items-center gap-2 text-[10px] text-[#718555]">
               <LockKeyhole className="size-3" />
-              {demo ? "Données fictives, stockées localement" : "Données propres à votre compte"}
+              Données propres à votre compte
             </div>
           </section>
         </div>
