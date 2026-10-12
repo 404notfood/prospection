@@ -12,7 +12,7 @@ test("Les commandes CLI initialisent une base en production et préservent le co
   const project = process.cwd();
   const file = join(directory, "workspace.sqlite");
   const password = randomBytes(24).toString("hex");
-  const environment = {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     NODE_ENV: "production",
     DATABASE_URL: "",
