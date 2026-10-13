@@ -131,8 +131,8 @@ function SettingsEditor() {
               />
             </div>
             <p className="mt-4 text-[11px] leading-6 text-muted-foreground">
-              Découverte par ville et rayon. Les codes NAF sont facultatifs : un filtre est proposé
-              pour les métiers reconnus, sinon toutes les activités de la zone sont recherchées.
+              Découverte par ville et rayon, tous métiers par défaut. Les activités et codes NAF
+              servent uniquement si vous choisissez de limiter la recherche à certains métiers.
             </p>
             <a
               href="https://recherche-entreprises.api.gouv.fr/docs/"

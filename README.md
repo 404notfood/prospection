@@ -159,14 +159,31 @@ Un champ web vide reste à vérifier. Les oppositions bloquent les contacts.
 L’ouverture de la messagerie ne consigne pas automatiquement un envoi.
 Les emails et appels effectués sont enregistrés manuellement.
 
-L’adaptateur de découverte utilise l’API Géo et l’API Recherche d’entreprises,
-uniquement après activation de la source dans les paramètres. Les codes NAF sont
-facultatifs : ceux saisis ont priorité ; sinon un catalogue de métiers courants
-propose le filtre. Le parcours peut résoudre les autres métiers avec l’IA, en
-exigeant des pages INSEE effectivement retournées par la recherche. Si une activité n’est pas reconnue, la recherche géographique
-inclut toutes les activités et un avertissement est affiché. Les établissements ouverts
-dans la zone sont rapprochés de leur entreprise ; les SIREN et l’identité évitent
-les doublons. Les sites, emails et téléphones ne sont jamais inventés.
+Une nouvelle campagne demande uniquement la ville : le rayon vaut 20 km par
+défaut et reste ajustable jusqu’à 50 km. Le nom est généré si vous le laissez
+vide. **Créer la campagne** fonctionne dès la première étape ; **Personnaliser**
+permet de choisir l’offre, le message et le rythme.
+
+Le mode **Tous les artisans · tous les métiers** est sélectionné par défaut.
+L’adaptateur utilise l’API Géo et l’API Recherche d’entreprises après activation
+de la source dans les paramètres. Aucun filtre NAF ni déduction de métier par
+l’IA n’est appliqué dans ce mode, même si d’anciens champs de ciblage subsistent.
+Il parcourt les entreprises actives de la zone, tous métiers confondus. La source
+publique peut aussi retourner des commerces ou des services : elle ne garantit
+pas une liste exhaustive d’artisans et le statut artisanal reste à vérifier.
+
+**Choisir certains métiers** ouvre les activités et codes NAF facultatifs. Les
+codes saisis ont priorité ; sinon un catalogue suggère le filtre. Le parcours
+peut résoudre les autres métiers avec l’IA, en exigeant des sources INSEE
+effectivement consultées. Une activité non reconnue donne une recherche large
+avec un avertissement. Les anciennes campagnes conservent leur ciblage ; les
+modifier permet de passer au mode tous métiers.
+
+Les établissements ouverts dans la zone sont rapprochés de leur entreprise ;
+les SIREN et l’identité évitent les doublons. La découverte avance par lots et
+conserve sa position à l’intérieur d’une page lorsque la limite du parcours est
+atteinte. La taille de page de la source reste fixe pour éviter de sauter des
+résultats entre les lots. Les sites, emails et téléphones ne sont jamais inventés.
 
 ### Sites et Google Business Profile
 

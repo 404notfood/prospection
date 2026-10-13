@@ -143,7 +143,7 @@ function WizardForm({
         ))}
       </div>
       <CampaignFields step={step} draft={draft} setDraft={setDraft} />
-      <div className="mt-5 flex justify-between border-t pt-4">
+      <div className="mt-5 flex flex-wrap justify-between gap-2 border-t pt-4">
         <Button
           variant="ghost"
           disabled={saving}
@@ -153,7 +153,7 @@ function WizardForm({
           {step ? "Retour" : "Annuler"}
         </Button>
         {step === 0 ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" disabled={saving} onClick={next}>
               Personnaliser
             </Button>
