@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { aiResearchSchema } from "./ai-research";
 
 export const statusSchema = z.enum([
   "review",
@@ -29,6 +30,9 @@ export const prospectSchema = z.object({
   email: optionalEmail,
   phone: shortText,
   website: optionalUrl,
+  seoAuditUrl: optionalUrl.default(""),
+  googleBusinessUrl: optionalUrl.default(""),
+  aiResearch: aiResearchSchema.nullable().default(null),
   presence: presenceSchema,
   status: statusSchema,
   campaignId: z.string(),
@@ -98,6 +102,9 @@ export const settingsSchema = z.object({
   batchSize: z.number().int().min(1).max(25),
   concurrentTasks: z.number().int().min(1).max(3),
   discoveryEnabled: z.boolean(),
+  webResearchEnabled: z.boolean().default(false),
+  aiResearchEnabled: z.boolean().default(false),
+  aiBatchSize: z.number().int().min(1).max(5).default(3),
 });
 
 export const workspaceSchema = z.object({

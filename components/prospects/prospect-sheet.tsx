@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, ArrowUpRight, Save, ArrowRight, Building2 } from "lucide-react";
+import { Mail, Phone, Save, ArrowRight, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Prospect } from "@/lib/domain/schema";
 import { prospectSchema } from "@/lib/domain/schema";
@@ -20,6 +20,9 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { ProspectIdentity, ProspectQualification } from "./prospect-fields";
 import { MessageComposer } from "./message-composer";
 import { initials, formatDate } from "@/lib/utils";
+import { ExternalLink } from "@/components/shared/external-link";
+import { WebResearchPanel } from "./web-research-panel";
+import { AiResearchPanel } from "./ai-research-panel";
 
 export function ProspectSheet({
   prospect,
@@ -119,6 +122,14 @@ function ProspectDetail({
         )}
       </SheetHeader>
       <div className="px-6 py-5">
+        <div className="mb-4 flex flex-wrap gap-3">
+          <ExternalLink url={draft.website}>Voir le site</ExternalLink>
+          <ExternalLink url={draft.seoAuditUrl}>Voir l’audit SEO</ExternalLink>
+          <ExternalLink url={draft.googleBusinessUrl}>Voir la fiche Google</ExternalLink>
+          <ExternalLink url={draft.sourceUrl}>Voir la source</ExternalLink>
+        </div>
+        <WebResearchPanel draft={draft} setDraft={setDraft} />
+        <AiResearchPanel draft={draft} setDraft={setDraft} />
         {!isNew && (
           <div className="mb-5 flex flex-wrap gap-2">
             <Button
@@ -148,14 +159,6 @@ function ProspectDetail({
               <Phone className="size-3.5" />
               Consigner un appel
             </Button>
-            {saved.sourceUrl && (
-              <Button asChild size="sm" variant="ghost">
-                <a href={saved.sourceUrl} target="_blank" rel="noreferrer">
-                  Source
-                  <ArrowUpRight className="size-3" />
-                </a>
-              </Button>
-            )}
           </div>
         )}
         <Tabs defaultValue={isNew ? "identity" : "qualification"}>

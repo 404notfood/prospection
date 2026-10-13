@@ -110,6 +110,8 @@ configurée via `SQLITE_PATH`. PostgreSQL est le stockage choisi pour ce VPS.
 - Campagnes avec ciblage géographique, critères, offre, modèle et taille de lot.
 - Liste des prospects : recherche, filtres, tri, pagination et export CSV.
 - Fiches : identité, coordonnées, sources, vérifications, notes et relances.
+- Liens directs vers le site, l’audit SEO et la fiche Google, dès la saisie et dans la liste.
+- Recherche du site et de la fiche Google, automatique par lot ou à la demande.
 - Qualification séquentielle par lots et reprise des informations conservées.
 - Modèles d’email, aperçu, personnalisation et ouverture de la messagerie.
 - Catalogue : tarifs indicatifs, conditions et disponibilité des prestations.
@@ -121,10 +123,64 @@ L’ouverture de la messagerie ne consigne pas automatiquement un envoi.
 Les emails et appels effectués sont enregistrés manuellement.
 
 L’adaptateur de découverte utilise l’API Géo et l’API Recherche d’entreprises,
-uniquement après activation de la source dans les paramètres. Les codes NAF de
-la campagne déterminent le filtre d’activité réel. Les établissements ouverts
+uniquement après activation de la source dans les paramètres. Les codes NAF sont
+facultatifs : ceux saisis ont priorité ; sinon un catalogue de métiers courants
+propose le filtre. Si une activité n’est pas reconnue, la recherche géographique
+inclut toutes les activités et un avertissement est affiché. Les établissements ouverts
 dans la zone sont rapprochés de leur entreprise ; les SIREN et l’identité évitent
 les doublons. Les sites, emails et téléphones ne sont jamais inventés.
+
+### Sites et Google Business Profile
+
+Sans clé, les fiches proposent des recherches manuelles Google et Google Maps.
+Pour automatiser :
+
+1. Créez un projet Google Cloud et activez **Places API (New)** avec la facturation.
+2. Créez une clé restreinte à cette API et, en production, aux IP du serveur.
+3. Ajoutez `GOOGLE_PLACES_API_KEY` à `.env.local` ou à l’environnement de production.
+   Ne publiez jamais cette clé et n’utilisez pas le préfixe `NEXT_PUBLIC_`.
+4. Redémarrez l’application. Dans **Paramètres → Vos connexions**, activez
+   **Sites et fiches Google**, puis enregistrez.
+
+Chaque nouveau prospect unique est recherché par nom, adresse et ville (au plus
+trois appels simultanés). Les appels consomment le quota Google et peuvent être
+facturés. Seule une correspondance unique de nom, ville et adresse renseigne les
+liens automatiquement ; l’entreprise reste à examiner. Les autres propositions
+peuvent être consultées et sélectionnées depuis la fiche, puis enregistrées.
+Un échec Google ne bloque pas l’import des entreprises. Aucun résultat ne vaut
+preuve d’absence de site ou de fiche Google. Les liens existants sont conservés.
+Les liens vers les audits SEO sont renseignés manuellement et inclus dans les exports.
+
+Documentation : [Text Search (New)](https://developers.google.com/maps/documentation/places/web-service/text-search).
+
+### Recherche web avec OpenAI
+
+Créez une clé de projet dans [OpenAI Platform](https://platform.openai.com/api-keys),
+configurez la facturation API, puis ajoutez `OPENAI_API_KEY` dans `.env.local` ou
+l’environnement de production. `OPENAI_MODEL` choisit le modèle compatible
+Responses, recherche web et sorties structurées (`gpt-4.1-mini` par défaut).
+Gardez la clé privée côté serveur et redémarrez l’application. L’abonnement
+ChatGPT et la facturation de l’API sont distincts.
+
+Dans **Paramètres → Vos connexions**, activez **Recherche avec OpenAI** et réglez
+le nombre de prospects analysés par lot (1–5, 3 par défaut), puis enregistrez.
+Une recherche web accompagne alors la découverte des nouveaux prospects.
+Les autres prospects peuvent être recherchés depuis **Rechercher avec l’IA**
+dans leur fiche. Google Places et OpenAI fonctionnent indépendamment.
+
+L’IA reçoit uniquement l’identité professionnelle (nom, activité, ville, adresse,
+SIREN et site connu) ; les notes et coordonnées personnelles ne sont pas envoyées.
+Elle propose une synthèse, un site et une fiche Google avec des sources cliquables.
+Les URL absentes des sources retournées par l’outil de recherche sont éliminées.
+Les propositions sont conservées séparément et s’appliquent après sélection
+manuelle, sans écraser les liens existants ni qualifier automatiquement le prospect.
+Les analyses sont incluses dans les sauvegardes JSON et les exports CSV.
+Une erreur ou un quota insuffisant n’empêche pas l’import des entreprises.
+Chaque appel est limité à 25 secondes, 6 000 tokens de sortie et deux appels
+d’outil par prospect ; les tokens et recherches web sont facturés par OpenAI.
+
+Documentation : [Recherche web](https://developers.openai.com/api/docs/guides/tools-web-search)
+et [Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create).
 
 ## Organisation et vérifications
 
@@ -155,6 +211,6 @@ Le lockfile conserve les dépendances natives des plateformes Linux attendues
 par le générateur. Les alertes npm de la chaîne ESLint héritée du starter sont
 limitées aux dépendances de développement (`npm audit --omit=dev` est propre).
 
-L’agent IA, l’envoi automatique, BullMQ/Redis et l’intégration SEO restent dans
+L’envoi automatique, les tâches IA planifiées, BullMQ/Redis et l’intégration SEO restent dans
 les phases ultérieures du cadrage. Aucun déploiement sur le VPS n’a été exécuté
 pendant la préparation du projet et du formulaire.

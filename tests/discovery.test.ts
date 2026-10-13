@@ -61,7 +61,17 @@ test("La découverte garde les établissements ouverts dans la zone et ne fabriq
     assert.equal(result.exhausted, false);
     assert.ok(called[1].includes("radius=30"));
     assert.ok(called[1].includes("per_page=10"));
-    await assert.rejects(() => discover({ ...campaign, nafCodes: "" }), /codes NAF/);
+    const automatic = await discover({ ...campaign, nafCodes: "" });
+    assert.equal(automatic.prospects.length, 1);
+    assert.equal(new URL(called[3]).searchParams.get("activite_principale"), "43.34Z,43.32A");
+    const geographic = await discover({
+      ...campaign,
+      nafCodes: "",
+      activities: ["Activité personnalisée"],
+    });
+    assert.equal(geographic.prospects.length, 1);
+    assert.equal(new URL(called[5]).searchParams.has("activite_principale"), false);
+    assert.equal(geographic.warnings.length, 1);
   } finally {
     globalThis.fetch = original;
   }

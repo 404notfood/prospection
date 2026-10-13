@@ -71,6 +71,15 @@ export function ProspectIdentity({
         value={draft.website}
         onChange={(v) => field("website", v)}
         placeholder="https://…"
+        linkLabel="Voir le site"
+      />
+      <FormField
+        label="Fiche Google Business Profile"
+        type="url"
+        value={draft.googleBusinessUrl}
+        onChange={(v) => field("googleBusinessUrl", v)}
+        placeholder="https://maps.google.com/…"
+        linkLabel="Voir la fiche Google"
       />
     </div>
   );
@@ -105,6 +114,14 @@ export function ProspectQualification({
         onChange={(v) => field("verifiedAt", v)}
       />
       <FormField
+        label="Lien vers l’audit SEO"
+        type="url"
+        value={draft.seoAuditUrl}
+        onChange={(v) => field("seoAuditUrl", v)}
+        placeholder="https://…"
+        linkLabel="Voir l’audit SEO"
+      />
+      <FormField
         label="Faits observés & vérifications"
         multiline
         rows={4}
@@ -124,6 +141,7 @@ export function ProspectQualification({
         value={draft.sourceUrl}
         onChange={(v) => field("sourceUrl", v)}
         placeholder="https://…"
+        linkLabel="Voir la source"
       />
       <SelectField
         label="Statut de prospection"

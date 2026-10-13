@@ -62,6 +62,7 @@ export function CampaignWizard({
                   (original.city !== draft.city ||
                     original.radius !== draft.radius ||
                     original.nafCodes !== draft.nafCodes ||
+                    original.activities.join(",") !== draft.activities.join(",") ||
                     original.batchSize !== draft.batchSize);
                 const next = targetChanged
                   ? { ...draft, searchPage: 1, searchExhausted: false }

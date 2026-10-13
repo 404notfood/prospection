@@ -2,22 +2,16 @@ import { z } from "zod";
 import { getSession, sameOrigin } from "@/lib/server/session";
 import { readWorkspace } from "@/lib/server/repository";
 import { discover } from "@/lib/server/discovery";
-
-const running = new Set<string>();
-const lastCalls = new Map<string, number>();
+import { deduplicate } from "@/lib/domain/prospects";
+import { enrichProspects, googleResearchConfigured } from "@/lib/server/web-research";
+import { startResearch, finishResearch } from "@/lib/server/research-lock";
+import { enrichProspectsWithAi } from "@/lib/server/ai-research";
 
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return Response.json({ error: "Connexion requise." }, { status: 401 });
   if (!sameOrigin(request))
     return Response.json({ error: "Origine non autorisée." }, { status: 403 });
-  if (running.has(session.user.id) || Date.now() - (lastCalls.get(session.user.id) || 0) < 1500)
-    return Response.json(
-      {
-        error: "Une recherche est en cours. Patientez avant de lancer le lot suivant.",
-      },
-      { status: 429 },
-    );
   const parsed = z
     .object({ campaignId: z.string().min(1) })
     .safeParse(await request.json().catch(() => null));
@@ -34,10 +28,37 @@ export async function POST(request: Request) {
       { error: "Cette campagne ne peut pas lancer de recherche." },
       { status: 422 },
     );
-  running.add(session.user.id);
-  lastCalls.set(session.user.id, Date.now());
+  if (!startResearch(session.user.id))
+    return Response.json(
+      { error: "Une recherche est en cours. Patientez avant de lancer le lot suivant." },
+      { status: 429 },
+    );
   try {
-    return Response.json(await discover(campaign));
+    const result = await discover(campaign);
+    result.prospects = deduplicate(data.prospects, result.prospects);
+    const aiTask = data.settings.aiResearchEnabled
+      ? enrichProspectsWithAi(result.prospects, data.settings.aiBatchSize)
+      : null;
+    if (data.settings.webResearchEnabled) {
+      if (googleResearchConfigured()) {
+        const enriched = await enrichProspects(result.prospects);
+        result.prospects = enriched.prospects;
+        result.warnings.push(...enriched.warnings);
+      } else
+        result.warnings.push(
+          "Google Places n’est pas configuré : sites et fiches Google restent à rechercher depuis les fiches prospects.",
+        );
+    }
+    if (aiTask) {
+      const analysis = await aiTask;
+      const byId = new Map(analysis.prospects.map((p) => [p.id, p.aiResearch]));
+      result.prospects = result.prospects.map((p) => ({
+        ...p,
+        aiResearch: byId.get(p.id) || null,
+      }));
+      result.warnings.push(...analysis.warnings);
+    }
+    return Response.json(result);
   } catch (error) {
     return Response.json(
       {
@@ -51,6 +72,6 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   } finally {
-    running.delete(session.user.id);
+    finishResearch(session.user.id);
   }
 }

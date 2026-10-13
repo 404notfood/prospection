@@ -6,6 +6,7 @@ import { presenceLabels } from "@/lib/domain/prospects";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { initials } from "@/lib/utils";
+import { ExternalLink } from "@/components/shared/external-link";
 
 interface TableProps {
   prospects: Prospect[];
@@ -87,6 +88,11 @@ export function ProspectTable({ prospects, selected, onSelect, onOpen, sort, onS
                   <Globe2 className="size-3.5" />
                   {presenceLabels[p.presence]}
                 </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <ExternalLink url={p.website}>Site</ExternalLink>
+                  <ExternalLink url={p.seoAuditUrl}>Audit SEO</ExternalLink>
+                  <ExternalLink url={p.googleBusinessUrl}>Fiche Google</ExternalLink>
+                </div>
               </td>
               <td className="px-3">
                 <div className="flex items-center gap-2 text-muted-foreground">

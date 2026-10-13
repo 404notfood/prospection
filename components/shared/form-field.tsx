@@ -2,6 +2,7 @@ import { useId } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ExternalLink } from "./external-link";
 
 interface FieldProps {
   label: string;
@@ -15,8 +16,17 @@ interface FieldProps {
   min?: number;
   max?: number;
   rows?: number;
+  linkLabel?: string;
 }
-export function FormField({ label, value, onChange, hint, multiline, ...props }: FieldProps) {
+export function FormField({
+  label,
+  value,
+  onChange,
+  hint,
+  multiline,
+  linkLabel,
+  ...props
+}: FieldProps) {
   const id = useId();
   return (
     <div>
@@ -29,6 +39,11 @@ export function FormField({ label, value, onChange, hint, multiline, ...props }:
         <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} {...props} />
       )}{" "}
       {hint && <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">{hint}</p>}
+      {linkLabel && (
+        <ExternalLink url={String(value)} className="mt-2">
+          {linkLabel}
+        </ExternalLink>
+      )}
     </div>
   );
 }

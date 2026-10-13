@@ -4,6 +4,7 @@ import { MapPin, SlidersHorizontal, MessageSquare } from "lucide-react";
 import { FormField, SelectField } from "@/components/shared/form-field";
 import type { Campaign } from "@/lib/domain/schema";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { activityFilter } from "@/lib/domain/activities";
 
 export function CampaignFields({
   step,
@@ -64,11 +65,17 @@ export function CampaignFields({
           required
         />
         <FormField
-          label="Codes NAF correspondants"
+          label="Codes NAF (facultatifs)"
           value={draft.nafCodes}
           onChange={(v) => field("nafCodes", v.toUpperCase().replace(/\s/g, ""))}
           placeholder="43.34Z,43.32A"
-          hint="Nécessaires pour la recherche publique par métier. Ils restent facultatifs pour les ajouts manuels."
+          hint={
+            draft.nafCodes
+              ? "Ces codes ont priorité sur le filtre automatique."
+              : activityFilter(draft).codes
+                ? `Filtre automatique suggéré pour vos activités : ${activityFilter(draft).codes}.`
+                : "Sans code reconnu, recherche dans la zone toutes activités confondues. Les métiers restent à vérifier."
+          }
         />
       </div>
     );

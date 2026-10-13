@@ -57,6 +57,9 @@ export function emptyWorkspace(): Workspace {
       batchSize: 10,
       concurrentTasks: 1,
       discoveryEnabled: false,
+      webResearchEnabled: false,
+      aiResearchEnabled: false,
+      aiBatchSize: 3,
     },
   };
 }
@@ -72,6 +75,9 @@ export function blankProspect(): Prospect {
     email: "",
     phone: "",
     website: "",
+    seoAuditUrl: "",
+    googleBusinessUrl: "",
+    aiResearch: null,
     presence: "unknown",
     status: "review",
     campaignId: "",

@@ -19,6 +19,7 @@ import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { CampaignWizard } from "./campaign-wizard";
 import { ProspectSheet } from "@/components/prospects/prospect-sheet";
+import { activityFilter } from "@/lib/domain/activities";
 
 export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   const { data, update, saving, basePath } = useWorkspace();
@@ -26,6 +27,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   const [edit, setEdit] = useState(false);
   const [queue, setQueue] = useState<string[]>([]);
   const [position, setPosition] = useState(0);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const prospects = campaignProspects(data, campaign.id);
   const total = counts(prospects);
   const examined = total.found - total.review;
@@ -34,6 +36,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
 
   async function search() {
     setSearching(true);
+    setWarnings([]);
     try {
       const response = await fetch("/api/discovery", {
         method: "POST",
@@ -45,9 +48,11 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
         nextPage: number;
         exhausted: boolean;
         sourceTotal: number;
+        warnings?: string[];
         error?: string;
       };
       if (!response.ok) throw new Error(result.error || "La recherche a échoué.");
+      setWarnings(result.warnings || []);
       let added = 0;
       const saved = await update((workspace) => {
         const unique = deduplicate(workspace.prospects, result.prospects);
@@ -209,8 +214,25 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
         </div>
         <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
           Page de découverte suivante : {campaign.searchPage}. Les doublons sont ignorés à l’import.
-          L’absence de site et les coordonnées sont vérifiées manuellement.
+          {activityFilter(campaign).codes
+            ? ` Filtre NAF ${campaign.nafCodes ? "renseigné" : "automatique"} : ${activityFilter(campaign).codes}.`
+            : " Toutes les activités de la zone sont incluses : les métiers restent à vérifier."}
+          {data.settings.webResearchEnabled
+            ? " Sites et fiches Google recherchés automatiquement ; correspondances à confirmer."
+            : " Recherche Google automatique désactivée dans les paramètres."}
+          {data.settings.aiResearchEnabled &&
+            ` Recherche web IA sur les ${data.settings.aiBatchSize} premiers prospects du lot ; propositions disponibles dans leurs fiches.`}
         </p>
+        {warnings.length > 0 && (
+          <div
+            role="status"
+            className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800"
+          >
+            {warnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-4">
         <p className="text-xs text-muted-foreground">

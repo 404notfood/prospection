@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { blankProspect } from "@/lib/domain/defaults";
 import type { Campaign, Prospect } from "@/lib/domain/schema";
+import { activityFilter } from "@/lib/domain/activities";
 
 const establishment = z.object({
   adresse: z.string().nullable(),
@@ -46,8 +47,7 @@ async function fetchJson(url: string) {
 }
 
 export async function discover(campaign: Campaign) {
-  if (!campaign.nafCodes)
-    throw new Error("Renseignez les codes NAF de la campagne pour rechercher par activité.");
+  const filter = activityFilter(campaign);
   const cityQuery = new URLSearchParams({
     nom: campaign.city,
     fields: "nom,centre,codesPostaux",
@@ -75,20 +75,21 @@ export async function discover(campaign: Campaign) {
     lat: String(latitude),
     long: String(longitude),
     radius: String(campaign.radius),
-    activite_principale: campaign.nafCodes,
     etat_administratif: "A",
     page: String(campaign.searchPage),
     per_page: String(campaign.batchSize),
   });
+  if (filter.codes) params.set("activite_principale", filter.codes);
   const url = `https://recherche-entreprises.api.gouv.fr/near_point?${params}`;
   const result = responseSchema.parse(await fetchJson(url));
-  const codes = new Set(campaign.nafCodes.split(","));
+  const codes = new Set(filter.codes.split(",").filter(Boolean));
   const prospects: Prospect[] = [];
   for (const company of result.results) {
     if (company.etat_administratif !== "A") continue;
     // Only retain an open matching establishment in the geographic response.
     const local = company.matching_etablissements?.find(
-      (e) => e.etat_administratif === "A" && codes.has(e.activite_principale || ""),
+      (e) =>
+        e.etat_administratif === "A" && (!codes.size || codes.has(e.activite_principale || "")),
     );
     if (!local) continue;
     prospects.push({
@@ -108,5 +109,10 @@ export async function discover(campaign: Campaign) {
     nextPage: campaign.searchPage + 1,
     exhausted: campaign.searchPage >= result.total_pages,
     sourceTotal: result.total_results,
+    warnings: !filter.codes
+      ? [
+          "Recherche géographique toutes activités : les métiers saisis ne correspondent pas au catalogue automatique. Vérifiez l’activité de chaque entreprise ou précisez des codes NAF.",
+        ]
+      : [],
   };
 }

@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { settingsSchema } from "@/lib/domain/schema";
 import { BackupPanel } from "./backup-panel";
+import { GoogleConnection } from "./google-connection";
+import { OpenAiConnection } from "./openai-connection";
 
 export function SettingsPage() {
   const { data } = useWorkspace();
@@ -107,8 +109,8 @@ function SettingsEditor() {
               />
             </div>
             <p className="mt-4 text-[11px] leading-6 text-muted-foreground">
-              Découverte par ville, rayon et codes NAF. Les sites web, emails et téléphones sont à
-              vérifier séparément.
+              Découverte par ville et rayon. Les codes NAF sont facultatifs : un filtre est proposé
+              pour les métiers reconnus, sinon toutes les activités de la zone sont recherchées.
             </p>
             <a
               href="https://recherche-entreprises.api.gouv.fr/docs/"
@@ -118,15 +120,23 @@ function SettingsEditor() {
             >
               Documentation de la source ↗
             </a>
+            <GoogleConnection
+              enabled={draft.webResearchEnabled}
+              onChange={(v) => setDraft({ ...draft, webResearchEnabled: v })}
+            />
+            <OpenAiConnection
+              enabled={draft.aiResearchEnabled}
+              batchSize={draft.aiBatchSize}
+              onChange={(v) => setDraft({ ...draft, aiResearchEnabled: v })}
+              onBatchSizeChange={(v) => setDraft({ ...draft, aiBatchSize: v })}
+            />
             <div className="mt-5 space-y-3 border-t pt-5">
-              {["Fournisseur IA", "Envoi d’emails intégré", "Audits SEO automatiques"].map(
-                (label) => (
-                  <div key={label} className="flex justify-between gap-2 text-[10px]">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="text-muted-foreground/60">Phase ultérieure</span>
-                  </div>
-                ),
-              )}
+              {["Envoi d’emails intégré", "Audits SEO automatiques"].map((label) => (
+                <div key={label} className="flex justify-between gap-2 text-[10px]">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="text-muted-foreground/60">Phase ultérieure</span>
+                </div>
+              ))}
             </div>
           </section>
           <section className="rounded-xl border bg-[#eff3e8] p-6">
