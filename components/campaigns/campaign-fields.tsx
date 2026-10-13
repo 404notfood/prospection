@@ -68,10 +68,26 @@ export function CampaignFields({
           <option value="all">Tous les artisans · tous les métiers</option>
           <option value="targeted">Choisir certains métiers (facultatif)</option>
         </SelectField>
+        <SelectField
+          label="Taille des entreprises"
+          value={draft.companyTarget}
+          onChange={(value) => field("companyTarget", value as Campaign["companyTarget"])}
+        >
+          <option value="small">TPE / PME · 30 salariés maximum</option>
+          <option value="all">Toutes les tailles</option>
+        </SelectField>
+        {draft.companyTarget === "small" && (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Les entreprises de plus de 30 salariés et les catégories GE/ETI sont écartées. Le
+            contrôle porte sur l’entreprise entière, pas sur son agence locale. La tranche de 20 à
+            49 salariés et les effectifs inconnus restent à vérifier ; les recherches et brouillons
+            automatiques attendent la confirmation du plafond.
+          </p>
+        )}
         {draft.searchScope === "all" ? (
           <p className="rounded-lg bg-muted p-4 text-xs leading-relaxed text-muted-foreground">
-            Toutes les entreprises actives de la zone sont recherchées sans filtre NAF, pour inclure
-            les artisans de tous les métiers. La source peut aussi retourner des commerces ou des
+            Les entreprises actives de la zone sont recherchées sans filtre NAF, pour inclure les
+            artisans de tous les métiers. La source peut aussi retourner des commerces ou des
             services : le statut artisanal reste à vérifier.
           </p>
         ) : (
@@ -181,6 +197,11 @@ export function CampaignFields({
         <p className="text-base font-medium">{prepareCampaign(draft).name}</p>
         <p className="mt-2 text-xs text-muted-foreground">
           {draft.city} · {draft.radius} km · {campaignSearchLabel(draft)}
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {draft.companyTarget === "small"
+            ? "TPE / PME · 30 salariés maximum"
+            : "Toutes tailles d’entreprises"}
         </p>
         <div className="my-4 h-px bg-border" />
         <p className="text-xs">{draft.criteria}</p>

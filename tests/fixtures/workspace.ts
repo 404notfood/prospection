@@ -2,6 +2,7 @@ import { emptyWorkspace } from "../../lib/domain/defaults";
 import type { Workspace, ProspectStatus } from "../../lib/domain/schema";
 import { defaultAutomation } from "../../lib/domain/automation";
 import { emptyVerification } from "../../lib/domain/verification";
+import { emptyCompanySize } from "../../lib/domain/company-size";
 
 // These companies and events are fictional. They never enter the private database.
 export function fixtureWorkspace(): Workspace {
@@ -13,6 +14,7 @@ export function fixtureWorkspace(): Workspace {
       name: "Les artisans de proximité",
       city: "Laval",
       radius: 30,
+      companyTarget: "all",
       searchScope: "targeted",
       activities: ["Peinture", "Menuiserie"],
       nafCodes: "43.34Z,43.32A",
@@ -32,6 +34,7 @@ export function fixtureWorkspace(): Workspace {
       name: "La vie de quartier",
       city: "Rennes",
       radius: 15,
+      companyTarget: "all",
       searchScope: "targeted",
       activities: ["Commerce indépendant"],
       nafCodes: "",
@@ -51,6 +54,7 @@ export function fixtureWorkspace(): Workspace {
       name: "Des savoir-faire à faire connaître",
       city: "Angers",
       radius: 20,
+      companyTarget: "all",
       searchScope: "targeted",
       activities: ["Services aux entreprises"],
       nafCodes: "",
@@ -101,6 +105,7 @@ export function fixtureWorkspace(): Workspace {
     status,
     address: "Adresse non renseignée",
     siren: "",
+    companySize: emptyCompanySize(),
     email: index % 3 ? `contact${index}@entreprise.example` : "",
     phone: "",
     website: "",

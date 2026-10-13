@@ -15,6 +15,8 @@ import { verification } from "@/lib/domain/verification";
 import { mergeProspectChanges, keepValidQualification } from "@/lib/domain/merge";
 import { activityFilter } from "@/lib/domain/activities";
 import { resolveActivities } from "./activity-research";
+import { currentCompanySize, applyCompanyTarget } from "@/lib/domain/company-size";
+import { lookupCompanySize } from "./company-size";
 
 export async function runPipeline(job: AutomationJob, token: string) {
   const active = async () => {
@@ -138,7 +140,11 @@ export async function runPipeline(job: AutomationJob, token: string) {
             p.campaignId === job.campaignId &&
             !p.opposed &&
             ((p.status === "review" && p.qualification !== "excluded") ||
-              (p.status === "ready" && !p.emailDraft)),
+              (p.status === "ready" &&
+                p.qualification !== "excluded" &&
+                (!p.emailDraft ||
+                  (context.campaign.companyTarget === "small" &&
+                    currentCompanySize(p).status !== "small")))),
         )
         .sort(
           (a, b) =>
@@ -165,7 +171,23 @@ export async function runPipeline(job: AutomationJob, token: string) {
         continue;
       }
       let next = structuredClone(before);
-      if (next.status === "review") {
+      if (context.campaign.companyTarget === "small") {
+        const size = currentCompanySize(next);
+        if (size.status === "unchecked" || size.status === "uncertain") {
+          next.companySize = await lookupCompanySize(next.siren);
+          if (!(await active())) return;
+        }
+        next = applyCompanyTarget(next, context.campaign);
+        if (currentCompanySize(next).status !== "small" && next.qualification !== "excluded") {
+          next.qualificationReason = next.companySize.reason;
+          job.warnings.push(
+            "Certaines tailles restent à vérifier. Les recherches web et brouillons automatiques attendent une confirmation TPE/PME et du plafond de 30 salariés.",
+          );
+        }
+      }
+      const sizeAllowed =
+        context.campaign.companyTarget !== "small" || currentCompanySize(next).status === "small";
+      if (next.status === "review" && next.qualification !== "excluded" && sizeAllowed) {
         if (
           context.data.settings.webResearchEnabled &&
           (await googleResearchConfigured(job.ownerId)) &&
@@ -208,7 +230,11 @@ export async function runPipeline(job: AutomationJob, token: string) {
           next = qualifyAutomatically(next, context.campaign);
       }
       if (!(await active())) return;
-      if (context.campaign.automation.prepareMessages && canContact(next) && !next.emailDraft) {
+      if (
+        context.campaign.automation.prepareMessages &&
+        canContact(next, context.campaign) &&
+        !next.emailDraft
+      ) {
         const useAi =
           context.data.settings.aiResearchEnabled &&
           (await openAiConfiguration(job.ownerId)).configured &&
@@ -239,7 +265,6 @@ export async function runPipeline(job: AutomationJob, token: string) {
         const campaign = workspace.campaigns.find((c) => c.id === job.campaignId)!;
         if (campaignTarget(campaign) !== job.target || campaign.state !== "active")
           return workspace;
-        if (current.status !== "review") merged.status = current.status;
         merged = keepValidQualification(merged);
         workspace.prospects = workspace.prospects.map((p) => (p.id === current.id ? merged : p));
         const id = `${job.id}-prospect-${current.id}`;
@@ -265,7 +290,10 @@ export async function runPipeline(job: AutomationJob, token: string) {
       (p) => p.automationRunId === job.id,
     );
     job.qualified = final.filter((p) => p.qualification === "matched").length;
-    job.drafts = final.filter((p) => p.emailDraft).length;
+    const finalCampaign = (await readWorkspace(job.ownerId)).data.campaigns.find(
+      (c) => c.id === job.campaignId,
+    );
+    job.drafts = final.filter((p) => p.emailDraft && canContact(p, finalCampaign)).length;
     job.stage = "finished";
     await checkpoint(job, token);
   } catch {

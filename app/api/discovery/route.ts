@@ -6,6 +6,7 @@ import { deduplicate } from "@/lib/domain/prospects";
 import { enrichProspects, googleResearchConfigured } from "@/lib/server/web-research";
 import { startResearch, finishResearch } from "@/lib/server/research-lock";
 import { enrichProspectsWithAi } from "@/lib/server/ai-research";
+import { currentCompanySize } from "@/lib/domain/company-size";
 import { listJobs } from "@/lib/server/jobs";
 
 export async function POST(request: Request) {
@@ -49,13 +50,18 @@ export async function POST(request: Request) {
   try {
     const result = await discover(campaign);
     result.prospects = deduplicate(data.prospects, result.prospects);
+    const researchable =
+      campaign.companyTarget === "small"
+        ? result.prospects.filter((p) => currentCompanySize(p).status === "small")
+        : result.prospects;
     const aiTask = data.settings.aiResearchEnabled
-      ? enrichProspectsWithAi(result.prospects, data.settings.aiBatchSize, session.user.id)
+      ? enrichProspectsWithAi(researchable, data.settings.aiBatchSize, session.user.id)
       : null;
     if (data.settings.webResearchEnabled) {
       if (await googleResearchConfigured(session.user.id)) {
-        const enriched = await enrichProspects(result.prospects, session.user.id);
-        result.prospects = enriched.prospects;
+        const enriched = await enrichProspects(researchable, session.user.id);
+        const byId = new Map(enriched.prospects.map((p) => [p.id, p]));
+        result.prospects = result.prospects.map((p) => byId.get(p.id) || p);
         result.warnings.push(...enriched.warnings);
       } else
         result.warnings.push(

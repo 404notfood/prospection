@@ -44,6 +44,7 @@ export function CampaignWizard({
                 const targetChanged =
                   original &&
                   (original.city !== draft.city ||
+                    original.companyTarget !== draft.companyTarget ||
                     original.searchScope !== draft.searchScope ||
                     original.radius !== draft.radius ||
                     original.nafCodes !== draft.nafCodes ||

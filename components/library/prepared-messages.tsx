@@ -10,7 +10,14 @@ export function PreparedMessages() {
   const { data } = useWorkspace();
   const [opened, setOpened] = useState("");
   const [limit, setLimit] = useState(10);
-  const drafts = data.prospects.filter((p) => p.emailDraft && canContact(p));
+  const drafts = data.prospects.filter(
+    (p) =>
+      p.emailDraft &&
+      canContact(
+        p,
+        data.campaigns.find((c) => c.id === p.campaignId),
+      ),
+  );
   const current = data.prospects.find((p) => p.id === opened);
   return (
     <section className="panel mb-6 space-y-4 p-5">

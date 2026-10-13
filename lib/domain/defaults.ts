@@ -1,5 +1,6 @@
 import type { Prospect, Workspace } from "./schema";
 import { emptyVerification } from "./verification";
+import { emptyCompanySize } from "./company-size";
 
 export function emptyWorkspace(): Workspace {
   return {
@@ -75,6 +76,7 @@ export function blankProspect(): Prospect {
     city: "",
     address: "",
     siren: "",
+    companySize: emptyCompanySize(),
     email: "",
     phone: "",
     website: "",

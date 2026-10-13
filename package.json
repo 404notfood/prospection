@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "node scripts/start.mjs",
     "worker": "tsx scripts/automation-worker.ts",
+    "worker:check": "tsx scripts/automation-worker.ts --check",
+    "worker:dev": "tsx scripts/automation-worker.ts --dev",
     "lint": "eslint",
     "types": "next typegen && tsc --noEmit",
     "account:setup": "tsx scripts/setup-account.ts",

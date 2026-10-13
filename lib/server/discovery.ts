@@ -2,6 +2,8 @@ import { z } from "zod";
 import { blankProspect } from "@/lib/domain/defaults";
 import type { Campaign, Prospect } from "@/lib/domain/schema";
 import { activityFilter } from "@/lib/domain/activities";
+import { classifyCompanySize } from "@/lib/domain/company-size";
+import { companySizeFields } from "./company-size";
 
 const establishment = z.object({
   adresse: z.string().nullable(),
@@ -13,6 +15,7 @@ const responseSchema = z.object({
   results: z.array(
     z.object({
       siren: z.string(),
+      ...companySizeFields,
       nom_complet: z.string(),
       etat_administratif: z.string(),
       activite_principale: z.string().nullable(),
@@ -80,25 +83,35 @@ export async function discover(campaign: Campaign, capacity = campaign.batchSize
     per_page: String(campaign.batchSize),
   });
   if (filter.codes) params.set("activite_principale", filter.codes);
+  if (campaign.companyTarget === "small") params.set("sort_by_size", "false");
   const url = `https://recherche-entreprises.api.gouv.fr/near_point?${params}`;
   const result = responseSchema.parse(await fetchJson(url));
   const codes = new Set(filter.codes.split(",").filter(Boolean));
   const prospects: Prospect[] = [];
+  let excludedLarge = 0;
+  let uncertainSize = 0;
   let offset = campaign.searchOffset;
   for (; offset < result.results.length; offset++) {
     if (prospects.length >= capacity) break;
     const company = result.results[offset];
     if (company.etat_administratif !== "A") continue;
+    const companySize = classifyCompanySize(company);
+    if (campaign.companyTarget === "small" && companySize.status === "large") {
+      excludedLarge++;
+      continue;
+    }
     // Only retain an open matching establishment in the geographic response.
     const local = company.matching_etablissements?.find(
       (e) =>
         e.etat_administratif === "A" && (!codes.size || codes.has(e.activite_principale || "")),
     );
     if (!local) continue;
+    if (campaign.companyTarget === "small" && companySize.status !== "small") uncertainSize++;
     prospects.push({
       ...blankProspect(),
       name: company.nom_complet,
       siren: company.siren,
+      companySize,
       address: local.adresse || "",
       city: local.libelle_commune || campaign.city,
       activity: `${local.activite_principale || company.activite_principale || "Activité à vérifier"}`,
@@ -114,11 +127,23 @@ export async function discover(campaign: Campaign, capacity = campaign.batchSize
     nextOffset: pageComplete ? 0 : offset,
     exhausted: pageComplete && campaign.searchPage >= result.total_pages,
     sourceTotal: result.total_results,
-    warnings:
-      !filter.codes && campaign.searchScope !== "all" && campaign.activities.length > 0
+    excludedLarge,
+    warnings: [
+      ...(!filter.codes && campaign.searchScope !== "all" && campaign.activities.length > 0
         ? [
             "Recherche géographique toutes activités : les métiers saisis ne correspondent pas au catalogue automatique. Vérifiez l’activité de chaque entreprise ou précisez des codes NAF.",
           ]
-        : [],
+        : []),
+      ...(excludedLarge
+        ? [
+            `${excludedLarge} entreprise(s) de catégorie GE/ETI ou avec un effectif confirmé supérieur à 30 salariés écartée(s) avant les recherches web.`,
+          ]
+        : []),
+      ...(uncertainSize
+        ? [
+            `${uncertainSize} entreprise(s) conservée(s) avec taille à vérifier ; aucune automatisation sans confirmation TPE/PME et du plafond de 30 salariés (la tranche 20–49 est incertaine).`,
+          ]
+        : []),
+    ],
   };
 }

@@ -1,4 +1,5 @@
 import type { Campaign, Prospect, ProspectStatus, Workspace } from "./schema";
+import { currentCompanySize } from "./company-size";
 
 export const statusLabels: Record<ProspectStatus, string> = {
   review: "À examiner",
@@ -37,9 +38,15 @@ export function counts(prospects: Prospect[]) {
       (p) => p.status === "review" && p.qualification !== "excluded" && !p.opposed,
     ).length,
     qualified: prospects.filter(
-      (p) => p.status !== "review" && p.status !== "declined" && !p.opposed,
+      (p) =>
+        p.status !== "review" &&
+        p.status !== "declined" &&
+        p.qualification !== "excluded" &&
+        !p.opposed,
     ).length,
-    ready: prospects.filter((p) => p.status === "ready" && !p.opposed).length,
+    ready: prospects.filter(
+      (p) => p.status === "ready" && p.qualification !== "excluded" && !p.opposed,
+    ).length,
     won: prospects.filter((p) => p.status === "won").length,
   };
 }
@@ -67,8 +74,13 @@ function identity(prospect: Prospect) {
     .replace(/[^a-z0-9|]/g, "");
 }
 
-export function canContact(prospect: Prospect) {
-  return !prospect.opposed && !["declined", "won", "review"].includes(prospect.status);
+export function canContact(prospect: Prospect, campaign?: Campaign) {
+  return (
+    !prospect.opposed &&
+    prospect.qualification !== "excluded" &&
+    !["declined", "won", "review"].includes(prospect.status) &&
+    (campaign?.companyTarget !== "small" || currentCompanySize(prospect).status === "small")
+  );
 }
 
 export function qualificationError(prospect: Prospect, campaign?: Campaign) {

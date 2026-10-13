@@ -17,7 +17,13 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Prospect invalide." }, { status: 422 });
   const { data } = await readWorkspace(session.user.id);
   const before = data.prospects.find((p) => p.id === parsed.data.prospectId);
-  if (!before || !canContact(before))
+  if (
+    !before ||
+    !canContact(
+      before,
+      data.campaigns.find((c) => c.id === before.campaignId),
+    )
+  )
     return Response.json(
       { error: "Ce prospect doit être qualifié et sans opposition." },
       { status: 422 },
@@ -35,7 +41,10 @@ export async function POST(request: Request) {
       const current = workspace.prospects.find((p) => p.id === before.id);
       if (
         !current ||
-        !canContact(current) ||
+        !canContact(
+          current,
+          workspace.campaigns.find((c) => c.id === current.campaignId),
+        ) ||
         researchIdentityKey(current) !== researchIdentityKey(before) ||
         JSON.stringify(current.emailDraft) !== JSON.stringify(before.emailDraft)
       )

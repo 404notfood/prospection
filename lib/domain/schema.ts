@@ -2,6 +2,7 @@ import { z } from "zod";
 import { aiResearchSchema } from "./ai-research";
 import { verificationSchema, emptyVerification } from "./verification";
 import { automationConfigSchema, defaultAutomation, draftSchema } from "./automation";
+import { companySizeSchema, emptyCompanySize } from "./company-size";
 
 export const statusSchema = z.enum([
   "review",
@@ -29,6 +30,7 @@ export const prospectSchema = z.object({
   city: shortText.min(1),
   address: shortText,
   siren: z.union([z.literal(""), z.string().regex(/^\d{9}$/)]),
+  companySize: companySizeSchema.default(emptyCompanySize),
   email: optionalEmail,
   phone: shortText,
   website: optionalUrl,
@@ -58,32 +60,48 @@ export const prospectSchema = z.object({
   opposed: z.boolean(),
 });
 
-export const campaignSchema = z.object({
-  id: z.string().min(1),
-  name: shortText.min(1),
-  city: shortText.min(1),
-  radius: z.number().int().min(1).max(50),
-  searchScope: z.enum(["all", "targeted"]).default("targeted"),
-  activities: z.array(shortText.min(1)).max(10).default([]),
-  nafCodes: z
-    .string()
-    .max(200)
-    .refine(
-      (value) => value === "" || /^\d{2}\.\d{2}[A-Z](,\d{2}\.\d{2}[A-Z])*$/.test(value),
-      "Codes NAF attendus : 43.34Z,43.32A",
-    )
-    .default(""),
-  criteria: z.string().max(3000),
-  offerId: z.string(),
-  templateId: z.string(),
-  batchSize: z.number().int().min(1).max(25),
-  state: z.enum(["active", "paused", "completed"]),
-  createdAt: z.iso.datetime(),
-  searchPage: z.number().int().min(1),
-  searchOffset: z.number().int().min(0).max(25).default(0),
-  searchExhausted: z.boolean(),
-  automation: automationConfigSchema.default(defaultAutomation),
-});
+export const campaignSchema = z.preprocess(
+  (input) => {
+    if (input && typeof input === "object" && !("companyTarget" in input)) {
+      // The new size policy changes source ordering: restart discovery without deleting prospects.
+      return {
+        ...input,
+        companyTarget: "small",
+        searchPage: 1,
+        searchOffset: 0,
+        searchExhausted: false,
+      };
+    }
+    return input;
+  },
+  z.object({
+    id: z.string().min(1),
+    name: shortText.min(1),
+    city: shortText.min(1),
+    radius: z.number().int().min(1).max(50),
+    companyTarget: z.enum(["small", "all"]).default("small"),
+    searchScope: z.enum(["all", "targeted"]).default("targeted"),
+    activities: z.array(shortText.min(1)).max(10).default([]),
+    nafCodes: z
+      .string()
+      .max(200)
+      .refine(
+        (value) => value === "" || /^\d{2}\.\d{2}[A-Z](,\d{2}\.\d{2}[A-Z])*$/.test(value),
+        "Codes NAF attendus : 43.34Z,43.32A",
+      )
+      .default(""),
+    criteria: z.string().max(3000),
+    offerId: z.string(),
+    templateId: z.string(),
+    batchSize: z.number().int().min(1).max(25),
+    state: z.enum(["active", "paused", "completed"]),
+    createdAt: z.iso.datetime(),
+    searchPage: z.number().int().min(1),
+    searchOffset: z.number().int().min(0).max(25).default(0),
+    searchExhausted: z.boolean(),
+    automation: automationConfigSchema.default(defaultAutomation),
+  }),
+);
 
 export const offerSchema = z.object({
   id: z.string().min(1),

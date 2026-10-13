@@ -52,6 +52,7 @@ test("La recherche large inclut tous les codes, ignore la déduction NAF et repr
     ...prepareCampaign({ ...newCampaign(data), city: "Laval" }),
     activities: ["Horloger", "Sculpteur"],
     nafCodes: "43.34Z",
+    companyTarget: "all" as const,
   };
   campaign.automation.maxProspects = 3;
   campaign.automation.maxPages = 3;

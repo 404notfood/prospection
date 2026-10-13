@@ -168,7 +168,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
               n: "01",
               title: "Découvrir",
               text: `${campaign.city} · ${campaign.radius} km`,
-              extra: campaignSearchLabel(campaign),
+              extra: `${campaignSearchLabel(campaign)} · ${campaign.companyTarget === "small" ? "30 salariés maximum" : "Toutes tailles"}`,
             },
             {
               n: "02",

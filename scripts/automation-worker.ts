@@ -5,7 +5,12 @@ import { initializeJobs, claimJob, heartbeat } from "../lib/server/jobs";
 import { runPipeline } from "../lib/server/pipeline";
 import { scheduleDueWork } from "../lib/server/scheduler";
 
-loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
+// A standalone worker must use the same production env files as `next start`.
+// Without NODE_ENV, @next/env otherwise loads development configuration.
+Object.assign(process.env, {
+  NODE_ENV: process.argv.includes("--dev") ? "development" : process.env.NODE_ENV || "production",
+});
+loadEnvConfig(process.cwd(), process.env.NODE_ENV === "development");
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
@@ -15,6 +20,15 @@ process.on("SIGINT", () => {
 });
 async function main() {
   await initializeJobs();
+  if (process.argv.includes("--check")) {
+    console.log(
+      "Worker : connexion à la base et tables de traitements vérifiées. Aucun parcours lancé.",
+    );
+    return;
+  }
+  console.log(
+    `Worker démarré en ${process.env.NODE_ENV}. Les recherches en attente vont être traitées.`,
+  );
   let lastSchedule = 0;
   do {
     await heartbeat();

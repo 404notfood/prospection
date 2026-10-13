@@ -3,6 +3,7 @@ import type { Campaign, Prospect, Workspace } from "./schema";
 import { displayVerification } from "./verification";
 import { canContact, qualificationError } from "./prospects";
 import { renderMessage, addCampaignOffer } from "./messages";
+import { applyCompanyTarget, currentCompanySize } from "./company-size";
 
 export const automationConfigSchema = z.object({
   enabled: z.boolean().default(false),
@@ -35,10 +36,23 @@ export function campaignTarget(campaign: Campaign) {
     campaign.offerId,
     campaign.templateId,
     ...(campaign.searchScope === "all" ? ["all", campaign.batchSize] : []),
+    ...(campaign.companyTarget === "small" ? ["small-companies-max30-v2"] : []),
   ]);
 }
 export function qualifyAutomatically(prospect: Prospect, campaign: Campaign): Prospect {
   if (prospect.status !== "review" || prospect.opposed) return prospect;
+  if (campaign.companyTarget === "small") {
+    const targeted = applyCompanyTarget(prospect, campaign);
+    if (targeted.qualification === "excluded") return targeted;
+    const size = currentCompanySize(prospect);
+    if (size.status !== "small")
+      return {
+        ...prospect,
+        qualification: "review",
+        qualificationReason:
+          size.reason || "Taille TPE/PME à vérifier avant qualification automatique.",
+      };
+  }
   const check = displayVerification(prospect, "website");
   if (check.status === "confirmed" && prospect.website) {
     if (campaign.criteria === "Aucun site identifié")
@@ -83,8 +97,8 @@ export function qualifyAutomatically(prospect: Prospect, campaign: Campaign): Pr
   return qualificationError(next, campaign) ? prospect : next;
 }
 export function prepareDraft(prospect: Prospect, data: Workspace): Prospect {
-  if (prospect.emailDraft || !canContact(prospect)) return prospect;
   const campaign = data.campaigns.find((c) => c.id === prospect.campaignId);
+  if (prospect.emailDraft || !canContact(prospect, campaign)) return prospect;
   const template = data.templates.find((t) => t.id === campaign?.templateId) || data.templates[0];
   if (!template) return prospect;
   const offer = data.offers.find((o) => o.id === campaign?.offerId && o.enabled);
@@ -106,8 +120,11 @@ export function followUpDate(days: number, from = new Date()) {
 export function updateDueFollowUps(data: Workspace, now = new Date()) {
   const today = now.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
   for (const prospect of data.prospects) {
+    const campaign = data.campaigns.find((c) => c.id === prospect.campaignId);
     if (
       prospect.opposed ||
+      prospect.qualification === "excluded" ||
+      (campaign?.companyTarget === "small" && currentCompanySize(prospect).status !== "small") ||
       prospect.repliedAt ||
       !["contacted", "follow-up"].includes(prospect.status) ||
       !prospect.followUpAt ||

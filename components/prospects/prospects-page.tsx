@@ -12,10 +12,11 @@ import { Input } from "@/components/ui/input";
 import { ProspectTable } from "./prospect-table";
 import { ProspectSheet } from "./prospect-sheet";
 import { blankProspect } from "@/lib/domain/defaults";
-import { statusLabels } from "@/lib/domain/prospects";
+import { statusLabels, canContact } from "@/lib/domain/prospects";
 import type { Prospect } from "@/lib/domain/schema";
 import { downloadFile, exportProspects } from "@/lib/domain/export";
 import { displayVerification, verificationLabels } from "@/lib/domain/verification";
+import { currentCompanySize } from "@/lib/domain/company-size";
 
 const PAGE_SIZE = 10;
 
@@ -41,20 +42,29 @@ export function ProspectsPage() {
       const matchesQuery = `${p.name} ${p.city} ${p.activity} ${p.siren}`
         .toLowerCase()
         .includes(query.toLowerCase());
+      const sizeExcluded =
+        data.campaigns.find((c) => c.id === p.campaignId)?.companyTarget === "small" &&
+        currentCompanySize(p).status === "large";
       const matchesStatus =
         status === "all" ||
         (status === "qualified"
           ? !["review", "declined"].includes(p.status) && !p.opposed
           : status === "excluded"
-            ? p.qualification === "excluded"
+            ? p.qualification === "excluded" || sizeExcluded
             : p.status === status && (status !== "review" || p.qualification !== "excluded"));
       return (
+        (status === "excluded" || !sizeExcluded) &&
         matchesQuery &&
         matchesStatus &&
         (campaign === "all" || p.campaignId === campaign) &&
         (websiteState === "all" || displayVerification(p, "website").status === websiteState) &&
         (googleState === "all" || displayVerification(p, "google").status === googleState) &&
-        (!draftOnly || !!p.emailDraft)
+        (!draftOnly ||
+          (!!p.emailDraft &&
+            canContact(
+              p,
+              data.campaigns.find((c) => c.id === p.campaignId),
+            )))
       );
     })
     .sort((a, b) => a.name.localeCompare(b.name, "fr") * (sort === "asc" ? 1 : -1));

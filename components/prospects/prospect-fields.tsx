@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { statusLabels, presenceLabels } from "@/lib/domain/prospects";
 import { verification } from "@/lib/domain/verification";
 import { ExternalLink } from "@/components/shared/external-link";
+import { emptyCompanySize } from "@/lib/domain/company-size";
 
 export function ProspectIdentity({
   draft,
@@ -20,6 +21,7 @@ export function ProspectIdentity({
     setDraft({
       ...draft,
       [key]: value,
+      ...(key === "siren" ? { companySize: emptyCompanySize() } : {}),
       ...(key === "email" ? { emailSource: "" } : {}),
       ...(key === "phone" ? { phoneSource: "" } : {}),
       ...(key === "website"

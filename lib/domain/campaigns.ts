@@ -7,6 +7,7 @@ export function newCampaign(data: Workspace): Campaign {
     name: "",
     city: "",
     radius: 20,
+    companyTarget: "small",
     searchScope: "all",
     activities: [],
     nafCodes: "",

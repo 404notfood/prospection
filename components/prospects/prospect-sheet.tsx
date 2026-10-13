@@ -25,6 +25,8 @@ import { WebResearchPanel } from "./web-research-panel";
 import { AiResearchPanel } from "./ai-research-panel";
 import { VerificationPanel } from "./verification-panel";
 import { ResponsePanel } from "./response-panel";
+import { CompanySizePanel } from "./company-size-panel";
+import { mergeProspectChanges } from "@/lib/domain/merge";
 
 export function ProspectSheet({
   prospect,
@@ -145,7 +147,12 @@ function ProspectDetail({
             <Button
               size="sm"
               variant="outline"
-              disabled={!canContact(saved)}
+              disabled={
+                !canContact(
+                  saved,
+                  data.campaigns.find((c) => c.id === saved.campaignId),
+                )
+              }
               onClick={() => setCompose(true)}
             >
               <Mail className="size-3.5" />
@@ -154,7 +161,12 @@ function ProspectDetail({
             <Button
               size="sm"
               variant="outline"
-              disabled={!canContact(saved) || saving}
+              disabled={
+                !canContact(
+                  saved,
+                  data.campaigns.find((c) => c.id === saved.campaignId),
+                ) || saving
+              }
               onClick={async () => {
                 await logEvent({
                   prospectId: saved.id,
@@ -185,6 +197,24 @@ function ProspectDetail({
           </TabsList>
           <TabsContent value="identity">
             <ProspectIdentity draft={draft} setDraft={setDraft} />
+            <CompanySizePanel
+              prospect={draft}
+              canVerify={!!saved && saved.siren === draft.siren}
+              onVerified={(result) =>
+                setDraft((current) =>
+                  current.siren === result.siren
+                    ? mergeProspectChanges(current, draft, {
+                        ...draft,
+                        companySize: result.companySize,
+                        qualification: result.qualification,
+                        qualificationReason: result.qualificationReason,
+                        status: result.status,
+                        followUpAt: result.followUpAt,
+                      })
+                    : current,
+                )
+              }
+            />
           </TabsContent>
           <TabsContent value="qualification">
             <ProspectQualification draft={draft} setDraft={setDraft} />

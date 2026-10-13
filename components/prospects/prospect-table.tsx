@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { initials } from "@/lib/utils";
 import { ExternalLink } from "@/components/shared/external-link";
 import { displayVerification, verificationLabels } from "@/lib/domain/verification";
+import { currentCompanySize, employeeRanges } from "@/lib/domain/company-size";
 
 interface TableProps {
   prospects: Prospect[];
@@ -77,6 +78,16 @@ export function ProspectTable({ prospects, selected, onSelect, onOpen, sort, onS
                     </span>
                     <span className="mt-1 block text-[10px] text-muted-foreground">
                       {p.activity}
+                    </span>
+                    <span className="mt-1 block text-[10px] text-muted-foreground">
+                      {currentCompanySize(p).status === "small"
+                        ? "TPE / PME · 30 salariés maximum"
+                        : currentCompanySize(p).status === "large"
+                          ? "Hors cible · plus de 30 salariés ou GE/ETI"
+                          : "Taille à vérifier"}
+                      {employeeRanges[currentCompanySize(p).employeeRange]
+                        ? ` · ${employeeRanges[currentCompanySize(p).employeeRange]}`
+                        : ""}
                     </span>
                   </span>
                 </button>

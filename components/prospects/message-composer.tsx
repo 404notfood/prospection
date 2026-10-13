@@ -32,7 +32,11 @@ export function MessageComposer({
         ? renderMessage(initial, prospect, data.settings)
         : { subject: "", body: "" },
   );
-  const allowed = canContact(prospect) && !!prospect.email;
+  const allowed =
+    canContact(
+      prospect,
+      data.campaigns.find((c) => c.id === prospect.campaignId),
+    ) && !!prospect.email;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]">
@@ -87,7 +91,13 @@ export function MessageComposer({
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            disabled={generating || !canContact(prospect)}
+            disabled={
+              generating ||
+              !canContact(
+                prospect,
+                data.campaigns.find((c) => c.id === prospect.campaignId),
+              )
+            }
             onClick={async () => {
               setGenerating(true);
               try {

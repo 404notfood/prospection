@@ -1,6 +1,7 @@
 import type { Prospect } from "./schema";
 import { statusLabels, presenceLabels } from "./prospects";
 import { displayVerification, verificationLabels } from "./verification";
+import { currentCompanySize, employeeRanges } from "./company-size";
 
 export function downloadFile(content: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -44,6 +45,12 @@ export function exportProspects(prospects: Prospect[]) {
     "Qualification",
     "Objet du brouillon",
     "Brouillon",
+    "Catégorie d’entreprise",
+    "Effectif de l’entreprise",
+    "Année catégorie",
+    "Année effectif",
+    "Contrôle taille",
+    "Source taille",
   ];
   const rows = prospects.map((p) => [
     p.name,
@@ -71,6 +78,12 @@ export function exportProspects(prospects: Prospect[]) {
     p.qualificationReason,
     p.emailDraft?.subject || "",
     p.emailDraft?.body || "",
+    currentCompanySize(p).category,
+    employeeRanges[currentCompanySize(p).employeeRange] || "Non renseigné",
+    currentCompanySize(p).categoryYear,
+    currentCompanySize(p).employeeYear,
+    currentCompanySize(p).reason,
+    currentCompanySize(p).sourceUrl,
   ]);
   return "\uFEFF" + [header, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
 }

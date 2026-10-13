@@ -128,6 +128,37 @@ npm run dev
 séparément, lancer Next.js directement et `npm run worker` dans un second service ;
 ne pas cumuler ce second service avec le démarrage standard du worker.
 
+### Worker non détecté sur le VPS
+
+Le service généré peut lancer `node .../next start` directement : dans ce cas,
+le worker n’est pas démarré. Vérifier avec
+`sudo systemctl show prospection -p ExecStart -p WorkingDirectory -p User --no-pager`.
+Le point d’entrée `scripts/start.mjs` lance Next.js et le worker avec le même
+environnement de production et supervise leurs arrêts.
+
+Le fichier `deploy/prospection-worker.conf` est une surcharge systemd préparée
+pour le VPS dont Node est installé dans `/opt/nvm/versions/node/v24.21.0/bin/node`,
+avec un serveur sur `127.0.0.1:3000`. Adapter ces chemins et le port si le service
+change. Après avoir vérifié que `scripts/start.mjs` est bien déployé :
+
+```bash
+sudo install -d -m 0755 /etc/systemd/system/prospection.service.d &&
+sudo install -m 0644 /home/prospection/app/deploy/prospection-worker.conf /etc/systemd/system/prospection.service.d/10-worker.conf &&
+sudo systemctl daemon-reload &&
+sudo systemctl restart prospection
+```
+
+Cette modification ne nécessite aucun build. Vérifier ensuite le journal avec
+`sudo journalctl -u prospection --since "2 minutes ago" --no-pager -n 50`, puis
+actualiser la campagne. Les travaux en attente sont conservés en base et seront
+repris. Ne pas lancer un second worker pour résoudre cette alerte si le service
+utilise déjà `scripts/start.mjs` : consulter le journal de son échec.
+
+Le lancement autonome `npm run worker` charge la production par défaut ;
+`npm run worker:dev` choisit explicitement le développement. Dans le répertoire
+de l’application, `npm run worker:check` vérifie la connexion à la base et les
+tables de traitements sans lancer de parcours ni signaler un faux worker actif.
+
 Ouvrir http://localhost:3000 : le formulaire de connexion est directement visible.
 Un compte authentifié retrouve `/app`. Les données des prospects démarrent vides.
 Sans initialisation des variables et de la base, la connexion ne peut pas aboutir.
@@ -184,6 +215,45 @@ les SIREN et l’identité évitent les doublons. La découverte avance par lots
 conserve sa position à l’intérieur d’une page lorsque la limite du parcours est
 atteinte. La taille de page de la source reste fixe pour éviter de sauter des
 résultats entre les lots. Les sites, emails et téléphones ne sont jamais inventés.
+
+### Cible TPE / PME
+
+Le ciblage **TPE / PME · 30 salariés maximum** est sélectionné par défaut, indépendamment
+du choix des métiers. La découverte conserve la catégorie INSEE, la tranche
+d’effectif, leurs années de référence et la source pour l’entreprise entière.
+Une agence locale de deux salariés d’une entreprise classée GE ne devient donc
+pas une TPE. Les catégories GE/ETI et les tranches d’effectif entièrement supérieures à 30 salariés sont
+écartés avant import et avant tout appel Google ou OpenAI.
+
+Les entreprises à taille inconnue sont conservées avec **Taille à vérifier**.
+La source donne des tranches, pas un effectif exact : **20 à 49 salariés** reste
+incertain, car cette tranche chevauche le plafond inclusif de 30 salariés.
+Les tranches de 50 salariés et plus sont exclues ; celles jusqu’à 19 salariés
+confirment le plafond, sous réserve de la catégorie PME.
+Leur qualification, recherche web et brouillon automatiques attendent une
+confirmation TPE/PME et du plafond de 30 salariés. Un petit effectif seul ne suffit pas à affirmer une catégorie
+PME : la catégorie INSEE tient aussi compte des données financières.
+
+**Traiter les prospects existants** vérifie les anciennes fiches par SIREN auprès
+de la source publique avant leurs recherches web. Les grands groupes sont classés
+**Hors cible** ; leur historique et leurs anciens brouillons restent conservés,
+mais ne sont plus proposés pour l’envoi ou les relances. Ils sont masqués dans
+la liste habituelle et accessibles via le filtre **Hors cible**. La fiche propose
+aussi **Vérifier la taille** et un lien vers la source. Les exports incluent ces
+informations. Aucune liste de noms d’enseignes n’est utilisée. Les métadonnées déjà
+enregistrées sont réévaluées avec le plafond actuel, sans redater leur source :
+une ancienne PME de 50 salariés ou plus est immédiatement bloquée pour le contact.
+
+Les anciennes campagnes sans ce réglage passent aux TPE/PME et recommencent la
+découverte à la première page, sans supprimer les prospects. Un ancien parcours
+dont le ciblage a changé se met en pause : l’annuler puis lancer un nouveau
+parcours. Le réglage **Toutes les tailles** reste disponible si nécessaire.
+L’endpoint géographique ne permet pas de filtrer directement sur la catégorie :
+l’application écarte les grandes entreprises au retour et avance dans les pages
+selon les limites de la campagne. Un lot peut donc ajouter peu ou aucun prospect
+si sa page contient surtout des grands groupes.
+
+Référence : [Catégorie d’entreprise INSEE](https://www.insee.fr/fr/metadonnees/definition/c1057).
 
 ### Sites et Google Business Profile
 

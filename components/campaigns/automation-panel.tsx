@@ -95,6 +95,13 @@ export function AutomationPanel({
         <p className="mt-1 text-xs text-muted-foreground">
           Découverte → vérifications site et Google → qualification → brouillon prêt à relire.
         </p>
+        {campaign.companyTarget === "small" && (
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Cible TPE/PME, 30 salariés maximum. « Traiter les prospects existants » vérifie aussi
+            les anciennes fiches et écarte les effectifs supérieurs au plafond et les grands groupes
+            avant tout appel Google ou IA. La tranche de 20 à 49 salariés reste à vérifier.
+          </p>
+        )}
       </div>
       <p className={`text-[11px] ${online ? "text-emerald-700" : "text-amber-700"}`}>
         {online
