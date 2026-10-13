@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { initials } from "@/lib/utils";
 import { ExternalLink } from "@/components/shared/external-link";
+import { displayVerification, verificationLabels } from "@/lib/domain/verification";
 
 interface TableProps {
   prospects: Prospect[];
@@ -88,6 +89,18 @@ export function ProspectTable({ prospects, selected, onSelect, onOpen, sort, onS
                   <Globe2 className="size-3.5" />
                   {presenceLabels[p.presence]}
                 </span>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Site : {verificationLabels[displayVerification(p, "website").status]}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Google : {verificationLabels[displayVerification(p, "google").status]}
+                </p>
+                {p.qualification === "excluded" && (
+                  <p className="mt-1 text-[10px] text-amber-700">Hors cible</p>
+                )}
+                {p.emailDraft && (
+                  <p className="mt-1 text-[10px] text-emerald-700">Brouillon prêt</p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <ExternalLink url={p.website}>Site</ExternalLink>
                   <ExternalLink url={p.seoAuditUrl}>Audit SEO</ExternalLink>

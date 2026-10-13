@@ -15,6 +15,7 @@ import { blankProspect } from "@/lib/domain/defaults";
 import { statusLabels } from "@/lib/domain/prospects";
 import type { Prospect } from "@/lib/domain/schema";
 import { downloadFile, exportProspects } from "@/lib/domain/export";
+import { displayVerification, verificationLabels } from "@/lib/domain/verification";
 
 const PAGE_SIZE = 10;
 
@@ -31,6 +32,9 @@ export function ProspectsPage() {
   const [dismissedLink, setDismissedLink] = useState(false);
   const [queue, setQueue] = useState<string[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
+  const [websiteState, setWebsiteState] = useState("all");
+  const [googleState, setGoogleState] = useState("all");
+  const [draftOnly, setDraftOnly] = useState(false);
   const linked = !dismissedLink ? data.prospects.find((p) => p.id === params.get("fiche")) : null;
   const filtered = data.prospects
     .filter((p) => {
@@ -41,8 +45,17 @@ export function ProspectsPage() {
         status === "all" ||
         (status === "qualified"
           ? !["review", "declined"].includes(p.status) && !p.opposed
-          : p.status === status);
-      return matchesQuery && matchesStatus && (campaign === "all" || p.campaignId === campaign);
+          : status === "excluded"
+            ? p.qualification === "excluded"
+            : p.status === status && (status !== "review" || p.qualification !== "excluded"));
+      return (
+        matchesQuery &&
+        matchesStatus &&
+        (campaign === "all" || p.campaignId === campaign) &&
+        (websiteState === "all" || displayVerification(p, "website").status === websiteState) &&
+        (googleState === "all" || displayVerification(p, "google").status === googleState) &&
+        (!draftOnly || !!p.emailDraft)
+      );
     })
     .sort((a, b) => a.name.localeCompare(b.name, "fr") * (sort === "asc" ? 1 : -1));
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -52,7 +65,7 @@ export function ProspectsPage() {
 
   function startBatch() {
     const pending = filtered
-      .filter((p) => p.status === "review" && !p.opposed)
+      .filter((p) => p.status === "review" && p.qualification !== "excluded" && !p.opposed)
       .slice(0, data.settings.batchSize);
     if (!pending.length) {
       toast.info("Aucune entreprise à examiner dans cette sélection.");
@@ -129,7 +142,13 @@ export function ProspectsPage() {
           >
             {label}
             <span className="ml-2 rounded bg-black/5 px-1.5 py-0.5 text-[9px]">
-              {data.prospects.filter((p) => value === "all" || p.status === value).length}
+              {
+                data.prospects.filter(
+                  (p) =>
+                    value === "all" ||
+                    (p.status === value && (value !== "review" || p.qualification !== "excluded")),
+                ).length
+              }
             </span>
           </button>
         ))}
@@ -176,6 +195,7 @@ export function ProspectsPage() {
           >
             <option value="all">Tous les statuts</option>
             <option value="qualified">Prospects potentiels</option>
+            <option value="excluded">Hors cible</option>
             {Object.entries(statusLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -185,6 +205,40 @@ export function ProspectsPage() {
           <Button variant="outline" className="text-[11px]" onClick={startBatch}>
             <ScanSearch className="size-3.5" />
             Examiner un lot
+          </Button>
+          {(
+            [
+              ["Site", websiteState, setWebsiteState],
+              ["Google", googleState, setGoogleState],
+            ] as const
+          ).map(([label, value, setValue]) => (
+            <select
+              key={label}
+              aria-label={`Filtrer la vérification ${label}`}
+              value={value}
+              className="h-9 rounded-md border bg-white px-2 text-xs"
+              onChange={(e) => {
+                setValue(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="all">{label} · tous les états</option>
+              {Object.entries(verificationLabels).map(([value, text]) => (
+                <option key={value} value={value}>
+                  {text}
+                </option>
+              ))}
+            </select>
+          ))}
+          <Button
+            variant={draftOnly ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => {
+              setDraftOnly(!draftOnly);
+              setPage(0);
+            }}
+          >
+            Brouillons prêts
           </Button>
         </div>
         {selected.size > 0 && (

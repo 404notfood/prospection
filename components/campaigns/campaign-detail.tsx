@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { CampaignWizard } from "./campaign-wizard";
 import { ProspectSheet } from "@/components/prospects/prospect-sheet";
 import { activityFilter } from "@/lib/domain/activities";
+import { AutomationPanel } from "./automation-panel";
+import { campaignTarget } from "@/lib/domain/automation";
 
 export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   const { data, update, saving, basePath } = useWorkspace();
@@ -28,6 +30,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   const [queue, setQueue] = useState<string[]>([]);
   const [position, setPosition] = useState(0);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [pipelineBusy, setPipelineBusy] = useState(false);
   const prospects = campaignProspects(data, campaign.id);
   const total = counts(prospects);
   const examined = total.found - total.review;
@@ -55,6 +58,11 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
       setWarnings(result.warnings || []);
       let added = 0;
       const saved = await update((workspace) => {
+        const campaignNow = workspace.campaigns.find((c) => c.id === campaign.id);
+        if (!campaignNow || campaignTarget(campaignNow) !== campaignTarget(campaign))
+          throw new Error(
+            "Le ciblage a changé pendant cette recherche. Relancez-la avec la nouvelle configuration.",
+          );
         const unique = deduplicate(workspace.prospects, result.prospects);
         added = unique.length;
         workspace.prospects.push(...unique);
@@ -62,8 +70,8 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
           c.id === campaign.id
             ? {
                 ...c,
-                searchPage: result.nextPage,
-                searchExhausted: result.exhausted,
+                searchPage: Math.max(c.searchPage, result.nextPage),
+                searchExhausted: c.searchExhausted || result.exhausted,
               }
             : c,
         );
@@ -90,7 +98,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   }
   function examine() {
     const pending = prospects
-      .filter((p) => p.status === "review" && !p.opposed)
+      .filter((p) => p.status === "review" && p.qualification !== "excluded" && !p.opposed)
       .slice(0, campaign.batchSize);
     if (!pending.length) {
       toast.info("Toutes les entreprises de cette campagne ont été examinées.");
@@ -187,7 +195,11 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
           <Button
             onClick={search}
             disabled={
-              searching || saving || campaign.state !== "active" || campaign.searchExhausted
+              searching ||
+              saving ||
+              pipelineBusy ||
+              campaign.state !== "active" ||
+              campaign.searchExhausted
             }
           >
             {searching ? (
@@ -234,6 +246,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
           </div>
         )}
       </div>
+      <AutomationPanel key={campaign.id} campaign={campaign} onBusy={setPipelineBusy} />
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-4">
         <p className="text-xs text-muted-foreground">
           {campaign.state === "paused"

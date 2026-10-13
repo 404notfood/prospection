@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { Prospect } from "@/lib/domain/schema";
@@ -10,6 +10,7 @@ import {
   researchIdentity,
   researchIdentityKey,
   type AiResearch,
+  applyAiVerification,
 } from "@/lib/domain/ai-research";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ export function AiResearchPanel({
   setDraft,
 }: {
   draft: Prospect;
-  setDraft: (p: Prospect) => void;
+  setDraft: Dispatch<SetStateAction<Prospect>>;
 }) {
   const { data } = useWorkspace();
   const [searching, setSearching] = useState(false);
@@ -44,7 +45,13 @@ export function AiResearchPanel({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Analyse IA indisponible.");
-      setResult(aiResearchSchema.parse(payload));
+      const research = aiResearchSchema.parse(payload);
+      setResult(research);
+      setDraft((current) =>
+        researchIdentityKey(current) === research.identityKey
+          ? applyAiVerification(current, research)
+          : current,
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Analyse IA indisponible.");
     } finally {

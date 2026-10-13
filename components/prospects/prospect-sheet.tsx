@@ -23,6 +23,8 @@ import { initials, formatDate } from "@/lib/utils";
 import { ExternalLink } from "@/components/shared/external-link";
 import { WebResearchPanel } from "./web-research-panel";
 import { AiResearchPanel } from "./ai-research-panel";
+import { VerificationPanel } from "./verification-panel";
+import { ResponsePanel } from "./response-panel";
 
 export function ProspectSheet({
   prospect,
@@ -70,6 +72,7 @@ function ProspectDetail({
 }) {
   const { data, saving, saveProspect, logEvent } = useWorkspace();
   const [draft, setDraft] = useState(prospect);
+  const [editingBase] = useState(prospect);
   const [compose, setCompose] = useState(false);
   const saved = data.prospects.find((p) => p.id === prospect.id);
   const isNew = !saved;
@@ -89,7 +92,7 @@ function ProspectDetail({
       toast.error("Cette entreprise existe déjà dans votre carnet.");
       return;
     }
-    if (await saveProspect(parsed.data)) {
+    if (await saveProspect(parsed.data, editingBase)) {
       if (next && onNext) onNext();
       else onClose();
     }
@@ -130,16 +133,23 @@ function ProspectDetail({
         </div>
         <WebResearchPanel draft={draft} setDraft={setDraft} />
         <AiResearchPanel draft={draft} setDraft={setDraft} />
+        <VerificationPanel draft={draft} setDraft={setDraft} />
+        {draft.qualificationReason && (
+          <p className="mb-4 rounded border p-3 text-xs text-muted-foreground">
+            {draft.qualification === "excluded" ? "Hors cible · " : "Qualification · "}
+            {draft.qualificationReason}
+          </p>
+        )}
         {!isNew && (
           <div className="mb-5 flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="outline"
-              disabled={!saved.email || !canContact(saved)}
+              disabled={!canContact(saved)}
               onClick={() => setCompose(true)}
             >
               <Mail className="size-3.5" />
-              Préparer un email
+              {saved.emailDraft ? "Ouvrir le brouillon" : "Préparer un email"}
             </Button>
             <Button
               size="sm"
@@ -178,6 +188,7 @@ function ProspectDetail({
           </TabsContent>
           <TabsContent value="qualification">
             <ProspectQualification draft={draft} setDraft={setDraft} />
+            {saved && <ResponsePanel prospect={saved} />}
           </TabsContent>
           <TabsContent value="history">
             <div className="space-y-5">

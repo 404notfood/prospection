@@ -33,7 +33,9 @@ export function campaignProspects(data: Workspace, id: string) {
 export function counts(prospects: Prospect[]) {
   return {
     found: prospects.length,
-    review: prospects.filter((p) => p.status === "review" && !p.opposed).length,
+    review: prospects.filter(
+      (p) => p.status === "review" && p.qualification !== "excluded" && !p.opposed,
+    ).length,
     qualified: prospects.filter(
       (p) => p.status !== "review" && p.status !== "declined" && !p.opposed,
     ).length,

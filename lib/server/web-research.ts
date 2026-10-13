@@ -11,6 +11,7 @@ const placeSchema = z.object({
   websiteUri: z.string().optional(),
   googleMapsUri: z.string(),
   businessStatus: z.string().optional(),
+  internationalPhoneNumber: z.string().optional(),
 });
 const normalize = (value: string) =>
   value
@@ -39,7 +40,7 @@ export async function researchBusiness(
       "Content-Type": "application/json",
       "X-Goog-Api-Key": key,
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.googleMapsUri,places.businessStatus",
+        "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.googleMapsUri,places.businessStatus,places.internationalPhoneNumber",
     },
     body: JSON.stringify({
       textQuery: [prospect.name, prospect.address, prospect.city].filter(Boolean).join(" "),
@@ -69,6 +70,7 @@ export async function researchBusiness(
       address: place.formattedAddress,
       website: webUrl(place.websiteUri || "") || "",
       googleBusinessUrl: webUrl(place.googleMapsUri)!,
+      phone: place.internationalPhoneNumber || "",
     }));
   // Name, municipality AND street must agree; ambiguous results remain manual.
   const exact = candidates.filter((candidate) => {
@@ -103,16 +105,54 @@ export async function enrichProspects(prospects: Prospect[]) {
           const { match, candidates } = await researchBusiness(prospect, deadline);
           if (!match) {
             ambiguous++;
-            return { ...prospect,
-              websiteVerification: prospect.websiteVerification.status === "confirmed" ? prospect.websiteVerification : verification(candidates.some((c) => c.website) || prospect.website ? "uncertain" : "not-found", "Aucune correspondance certaine dans Google Places. Cela ne prouve pas une absence sur le web.", "google", candidates.map((c) => c.googleBusinessUrl), candidates.map((c) => c.website).filter(Boolean)),
-              googleVerification: prospect.googleVerification.status === "confirmed" ? prospect.googleVerification : verification(candidates.length || prospect.googleBusinessUrl ? "uncertain" : "not-found", "Aucune fiche ne concorde certainement avec l’identité recherchée.", "google", candidates.map((c) => c.googleBusinessUrl), candidates.map((c) => c.googleBusinessUrl)) };
+            return {
+              ...prospect,
+              websiteVerification:
+                prospect.websiteVerification.status === "confirmed"
+                  ? prospect.websiteVerification
+                  : verification(
+                      candidates.some((c) => c.website) || prospect.website
+                        ? "uncertain"
+                        : "not-found",
+                      "Aucune correspondance certaine dans Google Places. Cela ne prouve pas une absence sur le web.",
+                      "google",
+                      candidates.map((c) => c.googleBusinessUrl),
+                      candidates.map((c) => c.website).filter(Boolean),
+                    ),
+              googleVerification:
+                prospect.googleVerification.status === "confirmed"
+                  ? prospect.googleVerification
+                  : verification(
+                      candidates.length || prospect.googleBusinessUrl ? "uncertain" : "not-found",
+                      "Aucune fiche ne concorde certainement avec l’identité recherchée.",
+                      "google",
+                      candidates.map((c) => c.googleBusinessUrl),
+                      candidates.map((c) => c.googleBusinessUrl),
+                    ),
+            };
           }
           return applyWebCandidate(prospect, match);
         } catch {
           failed++;
-          return { ...prospect,
-            websiteVerification: prospect.websiteVerification.status === "confirmed" ? prospect.websiteVerification : verification("error", "Google Places indisponible. Relancez la recherche.", "google"),
-            googleVerification: prospect.googleVerification.status === "confirmed" ? prospect.googleVerification : verification("error", "Google Places indisponible. Relancez la recherche.", "google") };
+          return {
+            ...prospect,
+            websiteVerification:
+              prospect.websiteVerification.status === "confirmed"
+                ? prospect.websiteVerification
+                : verification(
+                    "error",
+                    "Google Places indisponible. Relancez la recherche.",
+                    "google",
+                  ),
+            googleVerification:
+              prospect.googleVerification.status === "confirmed"
+                ? prospect.googleVerification
+                : verification(
+                    "error",
+                    "Google Places indisponible. Relancez la recherche.",
+                    "google",
+                  ),
+          };
         }
       }),
     );

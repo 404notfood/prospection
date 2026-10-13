@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { Prospect } from "@/lib/domain/schema";
@@ -13,13 +13,14 @@ import { mapsSearch, websiteSearch } from "@/lib/domain/urls";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "@/components/shared/external-link";
+import { verification } from "@/lib/domain/verification";
 
 export function WebResearchPanel({
   draft,
   setDraft,
 }: {
   draft: Prospect;
-  setDraft: (p: Prospect) => void;
+  setDraft: Dispatch<SetStateAction<Prospect>>;
 }) {
   const { data } = useWorkspace();
   const [searching, setSearching] = useState(false);
@@ -38,7 +39,36 @@ export function WebResearchPanel({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Recherche indisponible.");
-      setResult({ query, candidates: webCandidateSchema.array().parse(payload.candidates) });
+      const candidates = webCandidateSchema.array().parse(payload.candidates);
+      const match = payload.match ? webCandidateSchema.parse(payload.match) : null;
+      setResult({ query, candidates });
+      setDraft((current) => {
+        if (query !== JSON.stringify([current.name, current.city, current.address])) return current;
+        if (match) return applyWebCandidate(current, match);
+        return {
+          ...current,
+          websiteVerification:
+            current.websiteVerification.status === "confirmed"
+              ? current.websiteVerification
+              : verification(
+                  candidates.some((c) => c.website) || current.website ? "uncertain" : "not-found",
+                  "Aucune correspondance certaine dans Google Places. Une recherche web reste nécessaire.",
+                  "google",
+                  candidates.map((c) => c.googleBusinessUrl),
+                  candidates.map((c) => c.website).filter(Boolean),
+                ),
+          googleVerification:
+            current.googleVerification.status === "confirmed"
+              ? current.googleVerification
+              : verification(
+                  candidates.length || current.googleBusinessUrl ? "uncertain" : "not-found",
+                  "Aucune correspondance Google certaine.",
+                  "google",
+                  candidates.map((c) => c.googleBusinessUrl),
+                  candidates.map((c) => c.googleBusinessUrl),
+                ),
+        };
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Recherche indisponible.");
     } finally {

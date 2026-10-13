@@ -8,6 +8,7 @@ import {
   type AiResearch,
 } from "@/lib/domain/ai-research";
 import type { Prospect } from "@/lib/domain/schema";
+import { reserveAiCall } from "./ai-usage";
 
 export function openAiConfiguration() {
   return {
@@ -25,6 +26,9 @@ const generatedResult = z.object({
   sourceUrls: z.array(z.string()).max(12),
   websiteStatus: z.enum(["confirmed", "uncertain", "not-found", "unknown"]),
   googleStatus: z.enum(["confirmed", "uncertain", "not-found", "unknown"]),
+  email: z.string(),
+  phone: z.string(),
+  contactSourceUrl: z.string(),
 });
 const responseSchema = z.object({
   status: z.string(),
@@ -63,6 +67,7 @@ Chaque URL proposée doit figurer dans sourceUrls, avec l'URL exacte consultée 
 identityConfirmed est vrai seulement si l'identité est corroborée. Sinon, laisse les liens vides. Sans preuve, dis que la présence reste à vérifier, jamais qu'un site ou une fiche n'existe pas.
 summary est une courte synthèse en français avec références [1], [2] dans l'ordre de sourceUrls. Les hypothèses sont signalées comme telles.
 websiteStatus et googleStatus distinguent confirmed, uncertain, not-found et unknown. not-found signifie seulement aucun résultat identifié après recherche effective dans au moins deux sources indépendantes, avec identité confirmée. En cas d'homonyme ou de doute, utilise uncertain. Une fiche Google sans URL de site ne prouve pas l'absence de site.
+Recherche aussi l'email professionnel et le téléphone affichés sur la page contact officielle. Recopie-les exactement, sans générer un email à partir d'un nom de domaine. contactSourceUrl doit être l'URL exacte consultée et figurer dans sourceUrls. Sans identité certaine ou coordonnées explicitement publiées, laisse ces champs vides.
 Renvoie un résultat par id fourni, sans changer les ids. Aucune prise de contact ni qualification automatique.`;
 
 function specificGoogleListing(value: string) {
@@ -82,13 +87,14 @@ function specificGoogleListing(value: string) {
   );
 }
 
-export async function researchWithAi(identities: ResearchIdentity[]) {
+export async function researchWithAi(identities: ResearchIdentity[], ownerId?: string) {
   if (!identities.length || identities.length > 5)
     throw new Error("Analyse IA limitée à 1–5 entreprises par appel.");
   const configuration = openAiConfiguration();
   if (!configuration.configured)
     throw new Error("OpenAI n’est pas configuré. Ajoutez OPENAI_API_KEY sur le serveur.");
   let response: Response;
+  await reserveAiCall(ownerId);
   try {
     response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -171,6 +177,13 @@ export async function researchWithAi(identities: ResearchIdentity[]) {
     const cited = new Set(sources.map((source) => source.url));
     const website = webUrl(item.website);
     const google = webUrl(item.googleBusinessUrl);
+    const contact = webUrl(item.contactSourceUrl);
+    const contactVerified = item.identityConfirmed && contact && cited.has(contact);
+    const email = z.email().safeParse(item.email);
+    const phone =
+      /^\+?[\d () .-]{6,30}$/.test(item.phone) &&
+      item.phone.replace(/\D/g, "").length >= 8 &&
+      item.phone.replace(/\D/g, "").length <= 15;
     const research: AiResearch = aiResearchSchema.parse({
       identityKey: researchIdentityKey(identity),
       researchedAt: new Date().toISOString(),
@@ -188,16 +201,23 @@ export async function researchWithAi(identities: ResearchIdentity[]) {
       identityConfirmed: item.identityConfirmed && sources.length > 0,
       websiteStatus: item.websiteStatus,
       googleStatus: item.googleStatus,
+      email: contactVerified && email.success ? email.data : "",
+      phone: contactVerified && phone ? item.phone : "",
+      contactSourceUrl: contactVerified ? contact : "",
     });
     return { id: item.id, research };
   });
 }
 
-export async function enrichProspectsWithAi(prospects: Prospect[], batchSize: number) {
+export async function enrichProspectsWithAi(
+  prospects: Prospect[],
+  batchSize: number,
+  ownerId?: string,
+) {
   if (!prospects.length) return { prospects, warnings: [] as string[] };
   const selected = prospects.slice(0, batchSize);
   try {
-    const results = await researchWithAi(selected.map(researchIdentity));
+    const results = await researchWithAi(selected.map(researchIdentity), ownerId);
     const byId = new Map(results.map((item) => [item.id, item.research]));
     const warnings: string[] = [];
     const remaining = prospects.length - results.length;

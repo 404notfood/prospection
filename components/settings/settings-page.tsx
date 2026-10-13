@@ -82,12 +82,34 @@ function SettingsEditor() {
               hint="Appliquée aux nouvelles campagnes. Les campagnes existantes conservent leur réglage."
             />
             <div className="mt-5 rounded-lg bg-muted p-4 text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">Une recherche à la fois en V1.</span> La
-              taille du lot définit le nombre d’entreprises récupérées ; elle ne lance pas autant de
-              tâches en parallèle.
+              <span className="font-medium text-foreground">Un parcours à la fois par compte.</span>{" "}
+              Les traitements sont conservés en base et continuent après fermeture de l’onglet. Les
+              connexions et les limites de campagne maîtrisent les volumes.
+            </div>
+            <div className="mt-4">
+              <FormField
+                label="Délai de relance après email ou appel (jours)"
+                type="number"
+                min={1}
+                max={90}
+                value={draft.followUpDays}
+                onChange={(v) => setDraft({ ...draft, followUpDays: Number(v) })}
+                hint="Un rappel apparaît à l’échéance. Une réponse, un refus ou une opposition l’arrête. Aucun envoi automatique."
+              />
             </div>
           </section>
           <BackupPanel />
+          <section className="panel p-6">
+            <FormField
+              label="Appels OpenAI maximum par jour"
+              type="number"
+              min={1}
+              max={1000}
+              value={draft.dailyAiCalls}
+              onChange={(v) => setDraft({ ...draft, dailyAiCalls: Number(v) })}
+              hint="Plafond partagé entre recherches, déduction NAF et rédaction des brouillons. Compteur conservé en base, journée Europe/Paris."
+            />
+          </section>
         </div>
         <div className="space-y-6">
           <section className="panel p-6">

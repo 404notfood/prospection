@@ -56,8 +56,8 @@ export function OpenAiConnection({
       </p>
       <p className="text-[10px] text-muted-foreground">
         Les appels et recherches web utilisent votre crédit API. L’abonnement ChatGPT est séparé.
-        Seuls le nom, l’activité, la ville, l’adresse, le SIREN et le site sont transmis. Les notes,
-        emails et identifiants de connexion restent dans votre espace.
+        L’identité et les constats professionnels utiles à la recherche et aux brouillons sont
+        transmis. Les notes privées et identifiants de connexion restent dans votre espace.
       </p>
       <FormField
         label="Prospects analysés par l’IA par lot"

@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       { status: 429 },
     );
   try {
-    const [result] = await researchWithAi([parsed.data]);
+    const [result] = await researchWithAi([parsed.data], session.user.id);
     if (!result) throw new Error("OpenAI n’a pas retourné de résultat pour cette entreprise.");
     return Response.json(result.research);
   } catch (error) {

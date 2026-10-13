@@ -11,8 +11,20 @@ import { templateSchema, type EmailTemplate } from "@/lib/domain/schema";
 import { renderMessage } from "@/lib/domain/messages";
 import { blankProspect } from "@/lib/domain/defaults";
 import { cn } from "@/lib/utils";
+import { PreparedMessages } from "./prepared-messages";
 
-const variables = ["entreprise", "ville", "activite", "constat", "nom", "societe", "signature"];
+const variables = [
+  "entreprise",
+  "ville",
+  "activite",
+  "constat",
+  "nom",
+  "societe",
+  "signature",
+  "prestation",
+  "tarif",
+  "conditions",
+];
 export function TemplatesPage() {
   const { data, update, saving } = useWorkspace();
   const [draft, setDraft] = useState<EmailTemplate>(
@@ -70,6 +82,7 @@ export function TemplatesPage() {
           </Button>
         }
       />
+      <PreparedMessages />
       <div className="mb-5 flex flex-wrap gap-2">
         {data.templates.map((template) => (
           <button

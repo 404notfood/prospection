@@ -6,6 +6,7 @@ import { deduplicate } from "@/lib/domain/prospects";
 import { enrichProspects, googleResearchConfigured } from "@/lib/server/web-research";
 import { startResearch, finishResearch } from "@/lib/server/research-lock";
 import { enrichProspectsWithAi } from "@/lib/server/ai-research";
+import { listJobs } from "@/lib/server/jobs";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -18,6 +19,18 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Campagne invalide." }, { status: 422 });
   const { data } = await readWorkspace(session.user.id);
   const campaign = data.campaigns.find((c) => c.id === parsed.data.campaignId);
+  if (
+    (await listJobs(session.user.id)).some(
+      (j) => j.campaignId === parsed.data.campaignId && ["queued", "running"].includes(j.state),
+    )
+  )
+    return Response.json(
+      {
+        error:
+          "Un parcours automatique traite déjà cette campagne. Attendez sa fin ou mettez-le en pause.",
+      },
+      { status: 409 },
+    );
   if (!data.settings.discoveryEnabled)
     return Response.json(
       { error: "Activez la source publique dans les paramètres." },
@@ -37,7 +50,7 @@ export async function POST(request: Request) {
     const result = await discover(campaign);
     result.prospects = deduplicate(data.prospects, result.prospects);
     const aiTask = data.settings.aiResearchEnabled
-      ? enrichProspectsWithAi(result.prospects, data.settings.aiBatchSize)
+      ? enrichProspectsWithAi(result.prospects, data.settings.aiBatchSize, session.user.id)
       : null;
     if (data.settings.webResearchEnabled) {
       if (googleResearchConfigured()) {

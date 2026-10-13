@@ -1,5 +1,6 @@
 import type { Prospect } from "./schema";
 import { statusLabels, presenceLabels } from "./prospects";
+import { displayVerification, verificationLabels } from "./verification";
 
 export function downloadFile(content: string, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -38,6 +39,11 @@ export function exportProspects(prospects: Prospect[]) {
     "Notes",
     "Relance",
     "Opposition",
+    "Vérification site",
+    "Vérification Google",
+    "Qualification",
+    "Objet du brouillon",
+    "Brouillon",
   ];
   const rows = prospects.map((p) => [
     p.name,
@@ -60,6 +66,11 @@ export function exportProspects(prospects: Prospect[]) {
     p.notes,
     p.followUpAt,
     p.opposed ? "Oui" : "Non",
+    verificationLabels[displayVerification(p, "website").status],
+    verificationLabels[displayVerification(p, "google").status],
+    p.qualificationReason,
+    p.emailDraft?.subject || "",
+    p.emailDraft?.body || "",
   ]);
   return "\uFEFF" + [header, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
 }

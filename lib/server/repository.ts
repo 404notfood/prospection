@@ -40,6 +40,7 @@ export async function mutateWorkspace(ownerId: string, change: (data: Workspace)
   for (let attempt = 0; attempt < 8; attempt++) {
     const current = await readWorkspace(ownerId);
     const next = workspaceSchema.parse(change(structuredClone(current.data)));
+    if (JSON.stringify(next) === JSON.stringify(current.data)) return current;
     const { validateWorkspace } = await import("@/lib/domain/prospects");
     const error = validateWorkspace(next);
     if (error) throw new Error(error);

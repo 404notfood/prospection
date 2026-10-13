@@ -48,7 +48,11 @@ test("OpenAI recherche avec des sources, filtre les URL inventées et conserve l
     website: "https://example.com/",
     googleBusinessUrl: "https://www.google.com/maps/place/Rivage",
     sourceUrls: ["https://example.com/", "https://www.google.com/maps/place/Rivage"],
-    websiteStatus: "confirmed" as const, googleStatus: "confirmed" as const,
+    websiteStatus: "confirmed" as const,
+    googleStatus: "confirmed" as const,
+    email: "",
+    phone: "",
+    contactSourceUrl: "",
   };
   let status = "completed";
   let outputText: string | null = null;

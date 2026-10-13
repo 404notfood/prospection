@@ -5,6 +5,8 @@ import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { FormField, SelectField } from "@/components/shared/form-field";
 import { Switch } from "@/components/ui/switch";
 import { statusLabels, presenceLabels } from "@/lib/domain/prospects";
+import { verification } from "@/lib/domain/verification";
+import { ExternalLink } from "@/components/shared/external-link";
 
 export function ProspectIdentity({
   draft,
@@ -15,7 +17,31 @@ export function ProspectIdentity({
 }) {
   const { data } = useWorkspace();
   const field = <K extends keyof Prospect>(key: K, value: Prospect[K]) =>
-    setDraft({ ...draft, [key]: value });
+    setDraft({
+      ...draft,
+      [key]: value,
+      ...(key === "email" ? { emailSource: "" } : {}),
+      ...(key === "phone" ? { phoneSource: "" } : {}),
+      ...(key === "website"
+        ? {
+            websiteVerification: verification(
+              value ? "uncertain" : "unsearched",
+              "Lien modifié. Confirmation à reprendre.",
+              "manual",
+            ),
+            presence: "unknown" as const,
+          }
+        : {}),
+      ...(key === "googleBusinessUrl"
+        ? {
+            googleVerification: verification(
+              value ? "uncertain" : "unsearched",
+              "Lien modifié. Confirmation à reprendre.",
+              "manual",
+            ),
+          }
+        : {}),
+    });
   return (
     <div className="space-y-4">
       <FormField
@@ -59,12 +85,14 @@ export function ProspectIdentity({
         onChange={(v) => field("email", v)}
         placeholder="Uniquement si identifié"
       />
+      <ExternalLink url={draft.emailSource}>Source de l’email professionnel</ExternalLink>
       <FormField
         label="Téléphone"
         type="tel"
         value={draft.phone}
         onChange={(v) => field("phone", v)}
       />
+      <ExternalLink url={draft.phoneSource}>Source du téléphone</ExternalLink>
       <FormField
         label="Site officiel"
         type="url"

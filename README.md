@@ -41,7 +41,8 @@ Le générateur crée les mots de passe DB, `BETTER_AUTH_SECRET`, `OWNER_PASSWOR
 et la clé de chiffrement des sauvegardes **sur le VPS**. Aucun secret n’est
 saisi dans le formulaire ou exporté dans le bundle.
 
-Le profil n’utilise ni Prisma, ni Redis, ni processus IA, ni service mail intégré.
+Le profil n’utilise ni Prisma, ni Redis, ni service mail intégré. Un worker Node
+effectue les recherches, les vérifications, les brouillons et le suivi des relances.
 Les tables BetterAuth et la table des données de prospection sont créées par
 `db:setup`. Le compte privé est créé à la première installation ; les passages
 suivants conservent son mot de passe. Un email différent d’un compte déjà présent
@@ -95,6 +96,11 @@ npm run db:setup
 npm run dev
 ```
 
+`npm run dev` et `npm start` lancent le serveur Next.js et son worker.
+`tsx` est une dépendance de production du worker. Pour superviser les processus
+séparément, lancer Next.js directement et `npm run worker` dans un second service ;
+ne pas cumuler ce second service avec le démarrage standard du worker.
+
 Ouvrir http://localhost:3000 : le formulaire de connexion est directement visible.
 Un compte authentifié retrouve `/app`. Les données des prospects démarrent vides.
 Sans initialisation des variables et de la base, la connexion ne peut pas aboutir.
@@ -112,7 +118,11 @@ configurée via `SQLITE_PATH`. PostgreSQL est le stockage choisi pour ce VPS.
 - Fiches : identité, coordonnées, sources, vérifications, notes et relances.
 - Liens directs vers le site, l’audit SEO et la fiche Google, dès la saisie et dans la liste.
 - Recherche du site et de la fiche Google, automatique par lot ou à la demande.
-- Qualification séquentielle par lots et reprise des informations conservées.
+- Parcours automatique persistant, planification par campagne, pause et reprise.
+- Vérifications distinctes du site et de la fiche Google, avec états, dates et sources.
+- Qualification des constats suffisamment sourcés ; les cas incertains restent à examiner.
+- Brouillons personnalisés enregistrés, catalogue et signature conservés, envoi manuel.
+- Rappels de relance après contact manuel, arrêt après réponse, refus ou opposition.
 - Modèles d’email, aperçu, personnalisation et ouverture de la messagerie.
 - Catalogue : tarifs indicatifs, conditions et disponibilité des prestations.
 - Paramètres : identité, signature, source et sauvegardes JSON.
@@ -125,7 +135,8 @@ Les emails et appels effectués sont enregistrés manuellement.
 L’adaptateur de découverte utilise l’API Géo et l’API Recherche d’entreprises,
 uniquement après activation de la source dans les paramètres. Les codes NAF sont
 facultatifs : ceux saisis ont priorité ; sinon un catalogue de métiers courants
-propose le filtre. Si une activité n’est pas reconnue, la recherche géographique
+propose le filtre. Le parcours peut résoudre les autres métiers avec l’IA, en
+exigeant des pages INSEE effectivement retournées par la recherche. Si une activité n’est pas reconnue, la recherche géographique
 inclut toutes les activités et un avertissement est affiché. Les établissements ouverts
 dans la zone sont rapprochés de leur entreprise ; les SIREN et l’identité évitent
 les doublons. Les sites, emails et téléphones ne sont jamais inventés.
@@ -168,12 +179,15 @@ Une recherche web accompagne alors la découverte des nouveaux prospects.
 Les autres prospects peuvent être recherchés depuis **Rechercher avec l’IA**
 dans leur fiche. Google Places et OpenAI fonctionnent indépendamment.
 
-L’IA reçoit uniquement l’identité professionnelle (nom, activité, ville, adresse,
-SIREN et site connu) ; les notes et coordonnées personnelles ne sont pas envoyées.
-Elle propose une synthèse, un site et une fiche Google avec des sources cliquables.
+L’IA reçoit l’identité professionnelle (nom, activité, ville, adresse, SIREN et
+site connu) et les faits vérifiés nécessaires à la rédaction ; les notes privées
+et les identifiants de connexion ne sont pas envoyés. Elle propose une synthèse,
+un site, une fiche Google et les coordonnées professionnelles publiées, avec leurs sources.
 Les URL absentes des sources retournées par l’outil de recherche sont éliminées.
-Les propositions sont conservées séparément et s’appliquent après sélection
-manuelle, sans écraser les liens existants ni qualifier automatiquement le prospect.
+Les correspondances certaines s’appliquent sans écraser les informations existantes.
+Les propositions incertaines restent visibles à confirmer. La qualification du
+parcours exige un résultat daté et sourcé. Une fiche Google sans site renseigné
+ne permet pas, à elle seule, de qualifier « aucun site identifié ».
 Les analyses sont incluses dans les sauvegardes JSON et les exports CSV.
 Une erreur ou un quota insuffisant n’empêche pas l’import des entreprises.
 Chaque appel est limité à 25 secondes, 6 000 tokens de sortie et deux appels
@@ -181,6 +195,54 @@ d’outil par prospect ; les tokens et recherches web sont facturés par OpenAI.
 
 Documentation : [Recherche web](https://developers.openai.com/api/docs/guides/tools-web-search)
 et [Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create).
+
+## Parcours automatique et brouillons
+
+Dans une campagne active, **Lancer tout le parcours** ajoute un travail durable
+à la file SQL. Il découvre les pages suivantes, ignore les doublons, vérifie le
+site et la fiche Google, recherche les coordonnées publiées, qualifie les cas
+suffisamment vérifiés puis prépare les brouillons des prospects retenus.
+**Traiter les prospects existants** réalise les étapes sans nouvelle découverte.
+Les fiches jamais traitées ont priorité. Les cas hors cible sont conservés et
+signalés, sans les assimiler à un refus de la personne.
+
+Les états du site et de Google sont indépendants : non recherché, trouvé et
+confirmé, possible à vérifier, non identifié après recherche, recherche en erreur.
+Chaque état conserve sa méthode, sa date et ses sources. « Non identifié »
+reste une observation sur les sources consultées, pas une preuve d’inexistence.
+Les confirmations humaines et les liens existants sont conservés.
+
+**Planification et limites** configure l’activation, l’intervalle (24 h par
+défaut), le nombre de pages (3), les prospects (25) et les tentatives IA (20).
+La planification reste désactivée jusqu’à son activation par campagne.
+Le plafond quotidien OpenAI, partagé entre toutes les campagnes et actions
+manuelles, vaut 50 appels par défaut et se règle dans les paramètres. Le jour
+est calculé en Europe/Paris. Les tentatives sont réservées avant l’appel et
+ne sont pas remboursées en cas d’erreur, pour ne pas contourner le plafond.
+Ces limites portent sur les volumes, pas sur un montant garanti en euros.
+
+Le worker continue sans onglet ouvert. Les étapes terminées sont conservées ;
+un bail empêche deux workers de traiter la même tâche. Après un arrêt, le bail
+expire et la tâche reprend. Pause et annulation prennent effet entre les
+requêtes en cours et avant leur enregistrement. Changer le ciblage interrompt
+le parcours : annuler l’ancien et en lancer un nouveau. Une tâche reste en
+attente si aucun worker n’est disponible, avec une indication dans l’interface.
+Les tables de file et compteurs sont créées automatiquement, sans modifier
+les données existantes. Les modifications humaines sont préservées par fusion
+des champs et contrôle de révision.
+
+Les brouillons sont disponibles dans les fiches et **Messages → Brouillons
+préparés**. L’IA personnalise l’objet et le constat ; l’offre, ses conditions
+et son prix indicatif proviennent du catalogue, la signature des paramètres.
+Le modèle de campagne reste la base. Si l’IA échoue ou atteint un plafond,
+le modèle prépare le brouillon. Aucun envoi ni événement « email envoyé »
+n’est enregistré automatiquement. Copier, ouvrir la messagerie et consigner
+l’envoi restent des actions manuelles. Après un email ou appel consigné,
+une échéance est créée (7 jours par défaut). Une réponse ou un refus stoppe
+les rappels. Aucun audit, rapport ou traitement SEO n’est lancé.
+
+Pour vérifier le worker seul sans boucle permanente : `npm run worker -- --once`.
+Les tests utilisent une base temporaire et des réponses simulées des fournisseurs.
 
 ## Organisation et vérifications
 
@@ -211,6 +273,6 @@ Le lockfile conserve les dépendances natives des plateformes Linux attendues
 par le générateur. Les alertes npm de la chaîne ESLint héritée du starter sont
 limitées aux dépendances de développement (`npm audit --omit=dev` est propre).
 
-L’envoi automatique, les tâches IA planifiées, BullMQ/Redis et l’intégration SEO restent dans
-les phases ultérieures du cadrage. Aucun déploiement sur le VPS n’a été exécuté
-pendant la préparation du projet et du formulaire.
+L’envoi automatique et la gestion SEO sont exclus du parcours. Les API réelles,
+le rendu navigateur et le comportement PostgreSQL restent à vérifier dans
+l’environnement configuré ; aucun déploiement sur le VPS n’a été exécuté ici.

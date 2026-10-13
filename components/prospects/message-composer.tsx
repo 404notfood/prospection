@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, ExternalLink, Check } from "lucide-react";
+import { Copy, ExternalLink, Check, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { Prospect } from "@/lib/domain/schema";
 import { renderMessage, mailto } from "@/lib/domain/messages";
@@ -20,12 +20,17 @@ export function MessageComposer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data, saving, logEvent } = useWorkspace();
+  const { data, saving, logEvent, saveProspect, refresh } = useWorkspace();
+  const [generating, setGenerating] = useState(false);
   const preferred = data.campaigns.find((c) => c.id === prospect.campaignId)?.templateId;
   const initial = data.templates.find((t) => t.id === preferred) || data.templates[0];
   const [templateId, setTemplateId] = useState(initial?.id || "");
   const [message, setMessage] = useState(
-    initial ? renderMessage(initial, prospect, data.settings) : { subject: "", body: "" },
+    prospect.emailDraft
+      ? { subject: prospect.emailDraft.subject, body: prospect.emailDraft.body }
+      : initial
+        ? renderMessage(initial, prospect, data.settings)
+        : { subject: "", body: "" },
   );
   const allowed = canContact(prospect) && !!prospect.email;
   return (
@@ -80,6 +85,49 @@ export function MessageComposer({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={generating || !canContact(prospect)}
+            onClick={async () => {
+              setGenerating(true);
+              try {
+                const response = await fetch("/api/draft-mail", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ prospectId: prospect.id }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || "Préparation indisponible.");
+                if (result.draft)
+                  setMessage({ subject: result.draft.subject, body: result.draft.body });
+                await refresh();
+                toast.success(result.warning || "Brouillon personnalisé enregistré.");
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Préparation indisponible.");
+              } finally {
+                setGenerating(false);
+              }
+            }}
+          >
+            <Sparkles className="size-3.5" />
+            {generating ? "Préparation…" : "Régénérer le brouillon"}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={saving || !message.subject || !message.body}
+            onClick={() =>
+              saveProspect(
+                {
+                  ...prospect,
+                  emailDraft: { ...message, method: "manual", createdAt: new Date().toISOString() },
+                },
+                prospect,
+              )
+            }
+          >
+            <Save className="size-3.5" />
+            Enregistrer le brouillon
+          </Button>
           <Button
             variant="outline"
             onClick={async () => {

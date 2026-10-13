@@ -42,6 +42,9 @@ export const prospectSchema = z.object({
   emailDraft: draftSchema.default(null),
   repliedAt: z.string().default(""),
   automationRunId: z.string().default(""),
+  discoveryRunId: z.string().default(""),
+  emailSource: z.string().default(""),
+  phoneSource: z.string().default(""),
   presence: presenceSchema,
   status: statusSchema,
   campaignId: z.string(),
@@ -99,7 +102,16 @@ export const eventSchema = z.object({
   id: z.string().min(1),
   prospectId: z.string(),
   campaignId: z.string(),
-  kind: z.enum(["note", "email", "call", "status", "discovery", "campaign", "response", "automation"]),
+  kind: z.enum([
+    "note",
+    "email",
+    "call",
+    "status",
+    "discovery",
+    "campaign",
+    "response",
+    "automation",
+  ]),
   title: shortText.min(1),
   detail: z.string().max(3000),
   createdAt: z.iso.datetime(),
@@ -116,6 +128,7 @@ export const settingsSchema = z.object({
   aiResearchEnabled: z.boolean().default(false),
   aiBatchSize: z.number().int().min(1).max(5).default(3),
   followUpDays: z.number().int().min(1).max(90).default(7),
+  dailyAiCalls: z.number().int().min(1).max(1000).default(50),
 });
 
 export const workspaceSchema = z.object({

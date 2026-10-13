@@ -62,6 +62,7 @@ export function emptyWorkspace(): Workspace {
       aiResearchEnabled: false,
       aiBatchSize: 3,
       followUpDays: 7,
+      dailyAiCalls: 50,
     },
   };
 }
@@ -87,6 +88,9 @@ export function blankProspect(): Prospect {
     emailDraft: null,
     repliedAt: "",
     automationRunId: "",
+    discoveryRunId: "",
+    emailSource: "",
+    phoneSource: "",
     presence: "unknown",
     status: "review",
     campaignId: "",
