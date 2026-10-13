@@ -4,6 +4,7 @@ import { applyWebCandidate, type WebCandidate } from "@/lib/domain/web-research"
 import type { Prospect } from "@/lib/domain/schema";
 import { verification } from "@/lib/domain/verification";
 import { apiCredentials } from "./api-credentials";
+import { googleApiError } from "./google-api-error";
 
 const placeSchema = z.object({
   id: z.string(),
@@ -55,12 +56,7 @@ export async function researchBusiness(
       ? AbortSignal.any([signal, AbortSignal.timeout(12000)])
       : AbortSignal.timeout(12000),
   });
-  if (!response.ok)
-    throw new Error(
-      response.status === 429
-        ? "Le quota Google Places est atteint. Réessayez plus tard."
-        : "Google Places est indisponible. Vérifiez la clé, l’activation de Places API (New) et la facturation.",
-    );
+  if (!response.ok) throw new Error((await googleApiError(response)).error);
   const result = z
     .object({ places: z.array(placeSchema).default([]) })
     .parse(await response.json());

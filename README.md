@@ -181,6 +181,16 @@ Pour automatiser :
    enregistrez les paramètres. La vérification effectue une requête Places qui
    utilise votre quota Google. Aucun redémarrage n’est nécessaire après la saisie.
 
+Si la vérification Google échoue, le diagnostic reste affiché sous les boutons.
+Il distingue l’API non activée, la facturation, une clé invalide, les restrictions
+d’API, de sites web ou d’IP et les quotas. Les appels partent du VPS : autoriser
+**Places API (New)** (`places.googleapis.com`) dans le projet de la clé et
+restreindre la clé à l’IP publique de sortie du VPS. Une restriction de type
+**Sites web** est destinée aux appels du navigateur et ne convient pas ici.
+Un timeout ou un échec réseau indique que la clé n’a pas pu être vérifiée.
+La clé enregistrée est conservée après un test en erreur. Les réponses Google
+brutes, les clés et les identifiants du projet ne sont pas renvoyés au navigateur.
+
 Chaque nouveau prospect unique est recherché par nom, adresse et ville (au plus
 trois appels simultanés). Les appels consomment le quota Google et peuvent être
 facturés. Seule une correspondance unique de nom, ville et adresse renseigne les

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { sameOrigin } from "./session";
 import { startResearch, finishResearch } from "./research-lock";
+import { googleApiError, googleTransportError } from "./google-api-error";
 import {
   apiCredentials,
   connectionConfiguration,
@@ -33,27 +34,34 @@ const respond = (value: unknown, status = 200) =>
 async function verifyConnection(provider: ApiProvider, ownerId: string) {
   const { key, model } = await apiCredentials(provider, ownerId);
   if (!key) return respond({ error: "Enregistrez une clé avant de la vérifier." }, 422);
-  const response = await fetch(
-    provider === "openai"
-      ? `https://api.openai.com/v1/models/${encodeURIComponent(model)}`
-      : "https://places.googleapis.com/v1/places:searchText",
-    {
-      method: provider === "openai" ? "GET" : "POST",
-      headers:
-        provider === "openai"
-          ? { Authorization: `Bearer ${key}` }
-          : {
-              "Content-Type": "application/json",
-              "X-Goog-Api-Key": key,
-              "X-Goog-FieldMask": "places.id",
-            },
-      ...(provider === "google"
-        ? { body: JSON.stringify({ textQuery: "Paris France", pageSize: 1, languageCode: "fr" }) }
-        : {}),
-      cache: "no-store",
-      signal: AbortSignal.timeout(12000),
-    },
-  );
+  let response: Response;
+  try {
+    response = await fetch(
+      provider === "openai"
+        ? `https://api.openai.com/v1/models/${encodeURIComponent(model)}`
+        : "https://places.googleapis.com/v1/places:searchText",
+      {
+        method: provider === "openai" ? "GET" : "POST",
+        headers:
+          provider === "openai"
+            ? { Authorization: `Bearer ${key}` }
+            : {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": key,
+                "X-Goog-FieldMask": "places.id",
+              },
+        ...(provider === "google"
+          ? { body: JSON.stringify({ textQuery: "Paris France", pageSize: 1, languageCode: "fr" }) }
+          : {}),
+        cache: "no-store",
+        signal: AbortSignal.timeout(12000),
+      },
+    );
+  } catch (error) {
+    if (provider === "google") return respond(googleTransportError(error), 503);
+    throw error;
+  }
+  if (!response.ok && provider === "google") return respond(await googleApiError(response), 502);
   // Never relay vendor response bodies: they can contain credentials or account details.
   await response.body?.cancel();
   if (!response.ok)

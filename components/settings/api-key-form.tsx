@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ExternalLink } from "@/components/shared/external-link";
 
 type Provider = "openai" | "google";
 export type ConnectionConfiguration = {
@@ -49,8 +50,15 @@ export function ApiKeyForm({
   const [key, setKey] = useState("");
   const [model, setModel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    error: boolean;
+    message: string;
+    detail?: string;
+    helpUrl?: string;
+  } | null>(null);
   async function action(method: "PUT" | "POST" | "DELETE") {
     setBusy(true);
+    setFeedback(null);
     try {
       const response = await fetch("/api/connections", {
         method,
@@ -67,21 +75,40 @@ export function ApiKeyForm({
             : {}),
         }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Enregistrement indisponible.");
-      if (method === "POST") toast.success(result.message);
-      else {
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result) {
+        const message =
+          result?.error ||
+          "Le serveur n’a pas retourné de réponse valide. Réessayez ou consultez son journal.";
+        setFeedback({
+          error: true,
+          message,
+          detail:
+            provider === "google" && result?.code
+              ? `${result.code}${result.upstreamStatus ? ` · réponse Google HTTP ${result.upstreamStatus}` : ""}`
+              : undefined,
+          helpUrl: result?.helpUrl,
+        });
+        toast.error(message);
+        return;
+      }
+      if (method === "POST") {
+        setFeedback({ error: false, message: result.message });
+        toast.success(result.message);
+      } else {
         onSaved(result);
         setKey("");
         setModel(null);
         toast.success(
           method === "PUT"
-            ? "Connexion enregistrée. Elle est disponible immédiatement."
+            ? "Clé enregistrée. Vérifiez maintenant la connexion."
             : "Clé enregistrée supprimée.",
         );
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Connexion indisponible.");
+      const message = error instanceof Error ? error.message : "Connexion indisponible.";
+      setFeedback({ error: true, message });
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -162,6 +189,20 @@ export function ApiKeyForm({
           </Button>
         )}
       </div>
+      {feedback && (
+        <div
+          role={feedback.error ? "alert" : "status"}
+          className={`rounded-md border p-3 text-xs leading-relaxed ${feedback.error ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-primary/30 bg-primary/5"}`}
+        >
+          <p>{feedback.message}</p>
+          {feedback.detail && <p className="mt-2 text-[10px]">Diagnostic : {feedback.detail}</p>}
+          {feedback.helpUrl && (
+            <ExternalLink url={feedback.helpUrl} className="mt-2">
+              Aide à la configuration Google
+            </ExternalLink>
+          )}
+        </div>
+      )}
       <p className="text-[10px] leading-relaxed text-muted-foreground">
         {busy
           ? "Traitement en cours…"
