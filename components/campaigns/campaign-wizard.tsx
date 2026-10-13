@@ -15,7 +15,7 @@ import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { campaignSchema, type Campaign } from "@/lib/domain/schema";
 import { CampaignFields } from "./campaign-fields";
 import { cn } from "@/lib/utils";
-import { defaultAutomation } from "@/lib/domain/automation";
+import { newCampaign, prepareCampaign } from "@/lib/domain/campaigns";
 
 export function CampaignWizard({
   open,
@@ -33,25 +33,7 @@ export function CampaignWizard({
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[570px]">
         <WizardForm
           key={campaign?.id || "new"}
-          initial={
-            campaign || {
-              id: crypto.randomUUID(),
-              name: "",
-              city: "",
-              radius: 20,
-              activities: [""],
-              nafCodes: "",
-              criteria: "Aucun site identifié",
-              offerId: data.offers[0]?.id || "",
-              templateId: data.templates[0]?.id || "",
-              batchSize: data.settings.batchSize,
-              state: "active",
-              createdAt: new Date().toISOString(),
-              searchPage: 1,
-              searchExhausted: false,
-              automation: defaultAutomation(),
-            }
-          }
+          initial={campaign || newCampaign(data)}
           saving={saving}
           editing={!!campaign}
           onClose={() => onOpenChange(false)}
@@ -62,12 +44,13 @@ export function CampaignWizard({
                 const targetChanged =
                   original &&
                   (original.city !== draft.city ||
+                    original.searchScope !== draft.searchScope ||
                     original.radius !== draft.radius ||
                     original.nafCodes !== draft.nafCodes ||
                     original.activities.join(",") !== draft.activities.join(",") ||
                     original.batchSize !== draft.batchSize);
                 const next = targetChanged
-                  ? { ...draft, searchPage: 1, searchExhausted: false }
+                  ? { ...draft, searchPage: 1, searchOffset: 0, searchExhausted: false }
                   : draft;
                 workspace.campaigns = original
                   ? workspace.campaigns.map((c) => (c.id === draft.id ? next : c))
@@ -109,7 +92,7 @@ function WizardForm({
   const [step, setStep] = useState(0);
   function next() {
     if (step === 0) {
-      const parsed = campaignSchema.safeParse(draft);
+      const parsed = campaignSchema.safeParse(prepareCampaign(draft));
       if (!parsed.success) {
         toast.error(parsed.error.issues[0].message);
         return;
@@ -118,7 +101,7 @@ function WizardForm({
     setStep(step + 1);
   }
   async function submit() {
-    const parsed = campaignSchema.safeParse(draft);
+    const parsed = campaignSchema.safeParse(prepareCampaign(draft));
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
@@ -134,7 +117,9 @@ function WizardForm({
         <DialogTitle className="text-xl tracking-tight">
           {editing ? "Affiner votre campagne" : "Un nouveau terrain à explorer"}
         </DialogTitle>
-        <DialogDescription>Trois étapes pour une prospection qui vous ressemble.</DialogDescription>
+        <DialogDescription>
+          Indiquez une ville et un rayon. Tous les métiers sont inclus par défaut.
+        </DialogDescription>
       </DialogHeader>
       <div className="my-3 flex items-center gap-2">
         {["Ciblage", "Offre & message", "Rythme"].map((label, i) => (
@@ -167,7 +152,17 @@ function WizardForm({
           <ArrowLeft className="size-3.5" />
           {step ? "Retour" : "Annuler"}
         </Button>
-        {step < 2 ? (
+        {step === 0 ? (
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={saving} onClick={next}>
+              Personnaliser
+            </Button>
+            <Button disabled={saving} onClick={submit}>
+              {saving ? "Enregistrement…" : editing ? "Enregistrer" : "Créer la campagne"}
+              <Check className="size-3.5" />
+            </Button>
+          </div>
+        ) : step < 2 ? (
           <Button onClick={next}>
             Continuer
             <ArrowRight className="size-3.5" />

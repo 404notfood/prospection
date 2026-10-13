@@ -16,8 +16,14 @@ const activities: [RegExp, string][] = [
   [/\b(garage|garagiste|reparation automobile)s?\b/, "45.20A"],
 ];
 
-export function activityFilter(campaign: { nafCodes: string; activities: string[] }) {
+export function activityFilter(campaign: {
+  searchScope?: "all" | "targeted";
+  nafCodes: string;
+  activities: string[];
+}) {
+  if (campaign.searchScope === "all") return { codes: "", inferred: false };
   if (campaign.nafCodes) return { codes: campaign.nafCodes, inferred: false };
+  if (!campaign.activities.length) return { codes: "", inferred: false };
   const matches = campaign.activities.map((activity) => {
     const normalized = activity
       .normalize("NFD")

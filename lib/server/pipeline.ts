@@ -36,6 +36,8 @@ export async function runPipeline(job: AutomationJob, token: string) {
     if (
       job.stage === "discovery" &&
       job.pages === 0 &&
+      initial.campaign.searchScope !== "all" &&
+      initial.campaign.activities.length > 0 &&
       !activityFilter(initial.campaign).codes &&
       initial.data.settings.aiResearchEnabled &&
       (await openAiConfiguration(job.ownerId)).configured &&
@@ -56,6 +58,7 @@ export async function runPipeline(job: AutomationJob, token: string) {
           if (campaignTarget(campaign) !== job.target || campaign.nafCodes) return workspace;
           campaign.nafCodes = codes;
           campaign.searchPage = 1;
+          campaign.searchOffset = 0;
           campaign.searchExhausted = false;
           return workspace;
         });
@@ -83,15 +86,17 @@ export async function runPipeline(job: AutomationJob, token: string) {
       );
       if (capacity <= 0) break;
       const page = context.campaign.searchPage;
-      const result = await discover({
-        ...context.campaign,
-        batchSize: Math.min(context.campaign.batchSize, capacity),
-      });
+      const offset = context.campaign.searchOffset;
+      const result = await discover(context.campaign, capacity);
       if (!(await active())) return;
       let added = 0;
       await mutateWorkspace(job.ownerId, (workspace) => {
         const campaign = workspace.campaigns.find((c) => c.id === job.campaignId)!;
-        if (campaign.searchPage !== page || campaignTarget(campaign) !== job.target)
+        if (
+          campaign.searchPage !== page ||
+          campaign.searchOffset !== offset ||
+          campaignTarget(campaign) !== job.target
+        )
           return workspace;
         const unique = deduplicate(workspace.prospects, result.prospects).slice(
           0,
@@ -100,8 +105,9 @@ export async function runPipeline(job: AutomationJob, token: string) {
         added = unique.length;
         workspace.prospects.push(...unique.map((p) => ({ ...p, discoveryRunId: job.id })));
         campaign.searchPage = result.nextPage;
+        campaign.searchOffset = result.nextOffset;
         campaign.searchExhausted = result.exhausted;
-        const id = `${job.id}-page-${page}`;
+        const id = `${job.id}-page-${page}-offset-${offset}`;
         if (!workspace.events.some((e) => e.id === id))
           workspace.events.unshift({
             id,
@@ -115,7 +121,7 @@ export async function runPipeline(job: AutomationJob, token: string) {
         return workspace;
       });
       job.added += added;
-      job.pages++;
+      if (result.nextPage > page) job.pages++;
       job.warnings.push(...result.warnings);
       if (!(await checkpoint(job, token))) return;
     }

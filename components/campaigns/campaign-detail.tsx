@@ -22,6 +22,7 @@ import { ProspectSheet } from "@/components/prospects/prospect-sheet";
 import { activityFilter } from "@/lib/domain/activities";
 import { AutomationPanel } from "./automation-panel";
 import { campaignTarget } from "@/lib/domain/automation";
+import { campaignSearchLabel } from "@/lib/domain/campaigns";
 
 export function CampaignDetail({ campaign }: { campaign: Campaign }) {
   const { data, update, saving, basePath } = useWorkspace();
@@ -49,6 +50,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
       const result = (await response.json()) as {
         prospects: Prospect[];
         nextPage: number;
+        nextOffset: number;
         exhausted: boolean;
         sourceTotal: number;
         warnings?: string[];
@@ -63,6 +65,13 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
           throw new Error(
             "Le ciblage a changé pendant cette recherche. Relancez-la avec la nouvelle configuration.",
           );
+        if (
+          campaignNow.searchPage !== campaign.searchPage ||
+          campaignNow.searchOffset !== campaign.searchOffset
+        )
+          throw new Error(
+            "Une autre recherche a déjà avancé dans cette campagne. Actualisez puis relancez le lot suivant.",
+          );
         const unique = deduplicate(workspace.prospects, result.prospects);
         added = unique.length;
         workspace.prospects.push(...unique);
@@ -70,7 +79,8 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
           c.id === campaign.id
             ? {
                 ...c,
-                searchPage: Math.max(c.searchPage, result.nextPage),
+                searchPage: result.nextPage,
+                searchOffset: result.nextOffset,
                 searchExhausted: c.searchExhausted || result.exhausted,
               }
             : c,
@@ -158,7 +168,7 @@ export function CampaignDetail({ campaign }: { campaign: Campaign }) {
               n: "01",
               title: "Découvrir",
               text: `${campaign.city} · ${campaign.radius} km`,
-              extra: campaign.activities.join(", "),
+              extra: campaignSearchLabel(campaign),
             },
             {
               n: "02",

@@ -63,14 +63,16 @@ export const campaignSchema = z.object({
   name: shortText.min(1),
   city: shortText.min(1),
   radius: z.number().int().min(1).max(50),
-  activities: z.array(shortText.min(1)).min(1).max(10),
+  searchScope: z.enum(["all", "targeted"]).default("targeted"),
+  activities: z.array(shortText.min(1)).max(10).default([]),
   nafCodes: z
     .string()
     .max(200)
     .refine(
       (value) => value === "" || /^\d{2}\.\d{2}[A-Z](,\d{2}\.\d{2}[A-Z])*$/.test(value),
       "Codes NAF attendus : 43.34Z,43.32A",
-    ),
+    )
+    .default(""),
   criteria: z.string().max(3000),
   offerId: z.string(),
   templateId: z.string(),
@@ -78,6 +80,7 @@ export const campaignSchema = z.object({
   state: z.enum(["active", "paused", "completed"]),
   createdAt: z.iso.datetime(),
   searchPage: z.number().int().min(1),
+  searchOffset: z.number().int().min(0).max(25).default(0),
   searchExhausted: z.boolean(),
   automation: automationConfigSchema.default(defaultAutomation),
 });

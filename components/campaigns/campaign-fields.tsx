@@ -5,6 +5,7 @@ import { FormField, SelectField } from "@/components/shared/form-field";
 import type { Campaign } from "@/lib/domain/schema";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { activityFilter } from "@/lib/domain/activities";
+import { campaignSearchLabel, prepareCampaign } from "@/lib/domain/campaigns";
 
 export function CampaignFields({
   step,
@@ -24,15 +25,17 @@ export function CampaignFields({
         <div className="flex items-center gap-3 rounded-lg bg-muted p-4">
           <MapPin className="size-5 text-primary" />
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Choisissez votre terrain. La ville et les activités restent propres à chaque campagne.
+            Indiquez une ville et un rayon. Aucun métier ni code NAF à renseigner pour une recherche
+            large.
           </p>
         </div>
         <FormField
-          label="Nom de la campagne"
+          label="Nom de la campagne (facultatif)"
           value={draft.name}
           onChange={(v) => field("name", v)}
-          placeholder="Ex. Les artisans de proximité"
-          required
+          placeholder={
+            draft.city ? `Prospection autour de ${draft.city}` : "Généré à partir de la ville"
+          }
         />
         <div className="grid grid-cols-[1fr_100px] gap-4">
           <FormField
@@ -51,32 +54,58 @@ export function CampaignFields({
             onChange={(v) => field("radius", Number(v))}
           />
         </div>
-        <FormField
-          label="Activités ciblées"
-          value={draft.activities.join(", ")}
-          onChange={(v) =>
-            field(
-              "activities",
-              v.split(",").map((a) => a.trim()),
-            )
+        <SelectField
+          label="Entreprises recherchées"
+          value={draft.searchScope}
+          onChange={(value) =>
+            setDraft({
+              ...draft,
+              searchScope: value as Campaign["searchScope"],
+              ...(value === "all" ? { activities: [], nafCodes: "" } : {}),
+            })
           }
-          placeholder="Peinture, menuiserie…"
-          hint="Séparez les activités par des virgules."
-          required
-        />
-        <FormField
-          label="Codes NAF (facultatifs)"
-          value={draft.nafCodes}
-          onChange={(v) => field("nafCodes", v.toUpperCase().replace(/\s/g, ""))}
-          placeholder="43.34Z,43.32A"
-          hint={
-            draft.nafCodes
-              ? "Ces codes ont priorité sur le filtre automatique."
-              : activityFilter(draft).codes
-                ? `Filtre automatique suggéré pour vos activités : ${activityFilter(draft).codes}.`
-                : "Sans code reconnu, recherche dans la zone toutes activités confondues. Les métiers restent à vérifier."
-          }
-        />
+        >
+          <option value="all">Tous les artisans · tous les métiers</option>
+          <option value="targeted">Choisir certains métiers (facultatif)</option>
+        </SelectField>
+        {draft.searchScope === "all" ? (
+          <p className="rounded-lg bg-muted p-4 text-xs leading-relaxed text-muted-foreground">
+            Toutes les entreprises actives de la zone sont recherchées sans filtre NAF, pour inclure
+            les artisans de tous les métiers. La source peut aussi retourner des commerces ou des
+            services : le statut artisanal reste à vérifier.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <FormField
+              label="Activités ciblées (facultatif)"
+              value={draft.activities.join(", ")}
+              onChange={(v) =>
+                field(
+                  "activities",
+                  v
+                    .split(",")
+                    .map((a) => a.trim())
+                    .filter(Boolean),
+                )
+              }
+              placeholder="Peinture, menuiserie…"
+              hint="Séparez les métiers par des virgules. Laissez vide pour inclure tous les métiers."
+            />
+            <FormField
+              label="Codes NAF (facultatifs)"
+              value={draft.nafCodes}
+              onChange={(v) => field("nafCodes", v.toUpperCase().replace(/\s/g, ""))}
+              placeholder="43.34Z,43.32A"
+              hint={
+                draft.nafCodes
+                  ? "Ces codes ont priorité sur le filtre automatique."
+                  : activityFilter(draft).codes
+                    ? `Filtre automatique suggéré pour vos activités : ${activityFilter(draft).codes}.`
+                    : "Sans code reconnu, recherche dans la zone toutes activités confondues. Les métiers restent à vérifier."
+              }
+            />
+          </div>
+        )}
       </div>
     );
   if (step === 1)
@@ -149,9 +178,9 @@ export function CampaignFields({
       />
       <div className="rounded-xl border bg-[#fafbf8] p-5">
         <p className="section-label mb-4">Votre campagne en un regard</p>
-        <p className="text-base font-medium">{draft.name}</p>
+        <p className="text-base font-medium">{prepareCampaign(draft).name}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          {draft.city} · {draft.radius} km · {draft.activities.join(", ")}
+          {draft.city} · {draft.radius} km · {campaignSearchLabel(draft)}
         </p>
         <div className="my-4 h-px bg-border" />
         <p className="text-xs">{draft.criteria}</p>

@@ -46,7 +46,7 @@ async function fetchJson(url: string) {
   return response.json();
 }
 
-export async function discover(campaign: Campaign) {
+export async function discover(campaign: Campaign, capacity = campaign.batchSize) {
   const filter = activityFilter(campaign);
   const cityQuery = new URLSearchParams({
     nom: campaign.city,
@@ -84,7 +84,10 @@ export async function discover(campaign: Campaign) {
   const result = responseSchema.parse(await fetchJson(url));
   const codes = new Set(filter.codes.split(",").filter(Boolean));
   const prospects: Prospect[] = [];
-  for (const company of result.results) {
+  let offset = campaign.searchOffset;
+  for (; offset < result.results.length; offset++) {
+    if (prospects.length >= capacity) break;
+    const company = result.results[offset];
     if (company.etat_administratif !== "A") continue;
     // Only retain an open matching establishment in the geographic response.
     const local = company.matching_etablissements?.find(
@@ -104,15 +107,18 @@ export async function discover(campaign: Campaign) {
       sourceUrl: `https://annuaire-entreprises.data.gouv.fr/entreprise/${company.siren}`,
     });
   }
+  const pageComplete = offset >= result.results.length;
   return {
     prospects,
-    nextPage: campaign.searchPage + 1,
-    exhausted: campaign.searchPage >= result.total_pages,
+    nextPage: campaign.searchPage + (pageComplete ? 1 : 0),
+    nextOffset: pageComplete ? 0 : offset,
+    exhausted: pageComplete && campaign.searchPage >= result.total_pages,
     sourceTotal: result.total_results,
-    warnings: !filter.codes
-      ? [
-          "Recherche géographique toutes activités : les métiers saisis ne correspondent pas au catalogue automatique. Vérifiez l’activité de chaque entreprise ou précisez des codes NAF.",
-        ]
-      : [],
+    warnings:
+      !filter.codes && campaign.searchScope !== "all" && campaign.activities.length > 0
+        ? [
+            "Recherche géographique toutes activités : les métiers saisis ne correspondent pas au catalogue automatique. Vérifiez l’activité de chaque entreprise ou précisez des codes NAF.",
+          ]
+        : [],
   };
 }

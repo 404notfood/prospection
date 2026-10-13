@@ -34,6 +34,7 @@ export function campaignTarget(campaign: Campaign) {
     campaign.criteria,
     campaign.offerId,
     campaign.templateId,
+    ...(campaign.searchScope === "all" ? ["all", campaign.batchSize] : []),
   ]);
 }
 export function qualifyAutomatically(prospect: Prospect, campaign: Campaign): Prospect {
