@@ -35,3 +35,16 @@ export async function saveWorkspace(ownerId: string, data: Workspace, revision: 
   );
   return saved?.revision;
 }
+
+export async function mutateWorkspace(ownerId: string, change: (data: Workspace) => Workspace) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const current = await readWorkspace(ownerId);
+    const next = workspaceSchema.parse(change(structuredClone(current.data)));
+    const { validateWorkspace } = await import("@/lib/domain/prospects");
+    const error = validateWorkspace(next);
+    if (error) throw new Error(error);
+    const revision = await saveWorkspace(ownerId, next, current.revision);
+    if (revision !== undefined) return { data: next, revision };
+  }
+  throw new Error("Données modifiées simultanément. Réessayez le traitement.");
+}

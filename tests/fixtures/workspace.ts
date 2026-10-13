@@ -1,5 +1,7 @@
 import { emptyWorkspace } from "../../lib/domain/defaults";
 import type { Workspace, ProspectStatus } from "../../lib/domain/schema";
+import { defaultAutomation } from "../../lib/domain/automation";
+import { emptyVerification } from "../../lib/domain/verification";
 
 // These companies and events are fictional. They never enter the private database.
 export function fixtureWorkspace(): Workspace {
@@ -21,6 +23,7 @@ export function fixtureWorkspace(): Workspace {
       createdAt,
       searchPage: 1,
       searchExhausted: false,
+      automation: defaultAutomation(),
     },
     {
       id: "commerces",
@@ -37,6 +40,7 @@ export function fixtureWorkspace(): Workspace {
       createdAt,
       searchPage: 1,
       searchExhausted: false,
+      automation: defaultAutomation(),
     },
     {
       id: "services",
@@ -53,6 +57,7 @@ export function fixtureWorkspace(): Workspace {
       createdAt,
       searchPage: 1,
       searchExhausted: false,
+      automation: defaultAutomation(),
     },
   ];
   const companies: [string, string, string, string, ProspectStatus][] = [
@@ -96,6 +101,8 @@ export function fixtureWorkspace(): Workspace {
     seoAuditUrl: "",
     googleBusinessUrl: "",
     aiResearch: null,
+    websiteVerification: emptyVerification(), googleVerification: emptyVerification(),
+    qualification: "review", qualificationReason: "", emailDraft: null, repliedAt: "", automationRunId: "",
     presence: status === "review" ? "unknown" : "absent",
     source: "Jeu de démonstration",
     sourceUrl: "",

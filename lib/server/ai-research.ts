@@ -23,6 +23,8 @@ const generatedResult = z.object({
   website: z.string(),
   googleBusinessUrl: z.string(),
   sourceUrls: z.array(z.string()).max(12),
+  websiteStatus: z.enum(["confirmed", "uncertain", "not-found", "unknown"]),
+  googleStatus: z.enum(["confirmed", "uncertain", "not-found", "unknown"]),
 });
 const responseSchema = z.object({
   status: z.string(),
@@ -60,6 +62,7 @@ Propose uniquement le site officiel et une fiche Google Maps spécifique observ�
 Chaque URL proposée doit figurer dans sourceUrls, avec l'URL exacte consultée par l'outil. N'invente jamais une URL, un email, un téléphone, un audit ou des performances SEO.
 identityConfirmed est vrai seulement si l'identité est corroborée. Sinon, laisse les liens vides. Sans preuve, dis que la présence reste à vérifier, jamais qu'un site ou une fiche n'existe pas.
 summary est une courte synthèse en français avec références [1], [2] dans l'ordre de sourceUrls. Les hypothèses sont signalées comme telles.
+websiteStatus et googleStatus distinguent confirmed, uncertain, not-found et unknown. not-found signifie seulement aucun résultat identifié après recherche effective dans au moins deux sources indépendantes, avec identité confirmée. En cas d'homonyme ou de doute, utilise uncertain. Une fiche Google sans URL de site ne prouve pas l'absence de site.
 Renvoie un résultat par id fourni, sans changer les ids. Aucune prise de contact ni qualification automatique.`;
 
 function specificGoogleListing(value: string) {
@@ -182,6 +185,9 @@ export async function researchWithAi(identities: ResearchIdentity[]) {
           ? google
           : "",
       sources,
+      identityConfirmed: item.identityConfirmed && sources.length > 0,
+      websiteStatus: item.websiteStatus,
+      googleStatus: item.googleStatus,
     });
     return { id: item.id, research };
   });

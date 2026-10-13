@@ -2,6 +2,7 @@ import { z } from "zod";
 import { webUrl } from "@/lib/domain/urls";
 import { applyWebCandidate, type WebCandidate } from "@/lib/domain/web-research";
 import type { Prospect } from "@/lib/domain/schema";
+import { verification } from "@/lib/domain/verification";
 
 const placeSchema = z.object({
   id: z.string(),
@@ -99,15 +100,19 @@ export async function enrichProspects(prospects: Prospect[]) {
     const batch = await Promise.all(
       prospects.slice(index, index + 3).map(async (prospect) => {
         try {
-          const { match } = await researchBusiness(prospect, deadline);
+          const { match, candidates } = await researchBusiness(prospect, deadline);
           if (!match) {
             ambiguous++;
-            return prospect;
+            return { ...prospect,
+              websiteVerification: prospect.websiteVerification.status === "confirmed" ? prospect.websiteVerification : verification(candidates.some((c) => c.website) || prospect.website ? "uncertain" : "not-found", "Aucune correspondance certaine dans Google Places. Cela ne prouve pas une absence sur le web.", "google", candidates.map((c) => c.googleBusinessUrl), candidates.map((c) => c.website).filter(Boolean)),
+              googleVerification: prospect.googleVerification.status === "confirmed" ? prospect.googleVerification : verification(candidates.length || prospect.googleBusinessUrl ? "uncertain" : "not-found", "Aucune fiche ne concorde certainement avec l’identité recherchée.", "google", candidates.map((c) => c.googleBusinessUrl), candidates.map((c) => c.googleBusinessUrl)) };
           }
           return applyWebCandidate(prospect, match);
         } catch {
           failed++;
-          return prospect;
+          return { ...prospect,
+            websiteVerification: prospect.websiteVerification.status === "confirmed" ? prospect.websiteVerification : verification("error", "Google Places indisponible. Relancez la recherche.", "google"),
+            googleVerification: prospect.googleVerification.status === "confirmed" ? prospect.googleVerification : verification("error", "Google Places indisponible. Relancez la recherche.", "google") };
         }
       }),
     );

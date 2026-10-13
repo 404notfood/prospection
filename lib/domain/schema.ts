@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { aiResearchSchema } from "./ai-research";
+import { verificationSchema, emptyVerification } from "./verification";
+import { automationConfigSchema, defaultAutomation, draftSchema } from "./automation";
 
 export const statusSchema = z.enum([
   "review",
@@ -33,6 +35,13 @@ export const prospectSchema = z.object({
   seoAuditUrl: optionalUrl.default(""),
   googleBusinessUrl: optionalUrl.default(""),
   aiResearch: aiResearchSchema.nullable().default(null),
+  websiteVerification: verificationSchema.default(emptyVerification),
+  googleVerification: verificationSchema.default(emptyVerification),
+  qualification: z.enum(["review", "matched", "excluded"]).default("review"),
+  qualificationReason: z.string().max(1000).default(""),
+  emailDraft: draftSchema.default(null),
+  repliedAt: z.string().default(""),
+  automationRunId: z.string().default(""),
   presence: presenceSchema,
   status: statusSchema,
   campaignId: z.string(),
@@ -67,6 +76,7 @@ export const campaignSchema = z.object({
   createdAt: z.iso.datetime(),
   searchPage: z.number().int().min(1),
   searchExhausted: z.boolean(),
+  automation: automationConfigSchema.default(defaultAutomation),
 });
 
 export const offerSchema = z.object({
@@ -89,7 +99,7 @@ export const eventSchema = z.object({
   id: z.string().min(1),
   prospectId: z.string(),
   campaignId: z.string(),
-  kind: z.enum(["note", "email", "call", "status", "discovery", "campaign"]),
+  kind: z.enum(["note", "email", "call", "status", "discovery", "campaign", "response", "automation"]),
   title: shortText.min(1),
   detail: z.string().max(3000),
   createdAt: z.iso.datetime(),
@@ -105,6 +115,7 @@ export const settingsSchema = z.object({
   webResearchEnabled: z.boolean().default(false),
   aiResearchEnabled: z.boolean().default(false),
   aiBatchSize: z.number().int().min(1).max(5).default(3),
+  followUpDays: z.number().int().min(1).max(90).default(7),
 });
 
 export const workspaceSchema = z.object({

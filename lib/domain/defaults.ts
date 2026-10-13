@@ -1,4 +1,5 @@
 import type { Prospect, Workspace } from "./schema";
+import { emptyVerification } from "./verification";
 
 export function emptyWorkspace(): Workspace {
   return {
@@ -60,6 +61,7 @@ export function emptyWorkspace(): Workspace {
       webResearchEnabled: false,
       aiResearchEnabled: false,
       aiBatchSize: 3,
+      followUpDays: 7,
     },
   };
 }
@@ -78,6 +80,13 @@ export function blankProspect(): Prospect {
     seoAuditUrl: "",
     googleBusinessUrl: "",
     aiResearch: null,
+    websiteVerification: emptyVerification(),
+    googleVerification: emptyVerification(),
+    qualification: "review",
+    qualificationReason: "",
+    emailDraft: null,
+    repliedAt: "",
+    automationRunId: "",
     presence: "unknown",
     status: "review",
     campaignId: "",

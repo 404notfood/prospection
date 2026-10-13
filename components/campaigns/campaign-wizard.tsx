@@ -15,6 +15,7 @@ import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { campaignSchema, type Campaign } from "@/lib/domain/schema";
 import { CampaignFields } from "./campaign-fields";
 import { cn } from "@/lib/utils";
+import { defaultAutomation } from "@/lib/domain/automation";
 
 export function CampaignWizard({
   open,
@@ -48,6 +49,7 @@ export function CampaignWizard({
               createdAt: new Date().toISOString(),
               searchPage: 1,
               searchExhausted: false,
+              automation: defaultAutomation(),
             }
           }
           saving={saving}

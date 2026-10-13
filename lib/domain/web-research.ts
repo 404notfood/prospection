@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prospect } from "./schema";
+import { verification } from "./verification";
 
 const url = z
   .string()
@@ -27,5 +28,9 @@ export function applyWebCandidate(
     googleBusinessUrl: prospect.googleBusinessUrl || candidate.googleBusinessUrl,
     presence: manual && website ? "present" : prospect.presence,
     evidence: [prospect.evidence, observation].filter(Boolean).join("\n").slice(0, 3000),
+    websiteVerification: candidate.website && (!prospect.website || prospect.website === candidate.website)
+      ? verification("confirmed", manual ? "Site sélectionné manuellement." : "Nom, ville et adresse concordent avec la fiche Google.", manual ? "manual" : "google", [candidate.googleBusinessUrl], [website]) : prospect.websiteVerification,
+    googleVerification: !prospect.googleBusinessUrl || prospect.googleBusinessUrl === candidate.googleBusinessUrl
+      ? verification("confirmed", manual ? "Fiche sélectionnée manuellement." : "Nom, ville et adresse concordent.", manual ? "manual" : "google", [candidate.googleBusinessUrl], [candidate.googleBusinessUrl]) : prospect.googleVerification,
   };
 }
