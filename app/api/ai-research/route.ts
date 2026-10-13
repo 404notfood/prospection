@@ -6,8 +6,11 @@ import { researchIdentitySchema } from "@/lib/domain/ai-research";
 import { startResearch, finishResearch } from "@/lib/server/research-lock";
 
 export async function GET() {
-  if (!(await getSession())) return Response.json({ error: "Connexion requise." }, { status: 401 });
-  return Response.json(openAiConfiguration(), { headers: { "Cache-Control": "no-store" } });
+  const session = await getSession();
+  if (!session) return Response.json({ error: "Connexion requise." }, { status: 401 });
+  return Response.json(await openAiConfiguration(session.user.id), {
+    headers: { "Cache-Control": "no-store" },
+  });
 }
 export async function POST(request: Request) {
   const session = await getSession();

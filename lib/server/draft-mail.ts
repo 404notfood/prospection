@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Prospect, Workspace } from "@/lib/domain/schema";
 import { prepareDraft } from "@/lib/domain/automation";
-import { openAiConfiguration } from "./ai-research";
+import { apiCredentials } from "./api-credentials";
 import { renderMessage, addCampaignOffer } from "@/lib/domain/messages";
 import { reserveAiCall } from "./ai-usage";
 
@@ -12,27 +12,23 @@ export async function preparePersonalizedDraft(
   ownerId?: string,
 ) {
   const prepared = prepareDraft(prospect, data);
-  if (
-    !prepared.emailDraft ||
-    prospect.emailDraft ||
-    !useAi ||
-    !data.settings.aiResearchEnabled ||
-    !openAiConfiguration().configured
-  )
+  if (!prepared.emailDraft || prospect.emailDraft || !useAi || !data.settings.aiResearchEnabled)
     return { prospect: prepared, warning: "" };
   const schema = z.object({ subject: z.string().max(180), opening: z.string().max(1200) });
   try {
+    const configuration = await apiCredentials("openai", ownerId);
+    if (!configuration.key) return { prospect: prepared, warning: "" };
     await reserveAiCall(ownerId);
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       cache: "no-store",
       signal: AbortSignal.timeout(25000),
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY!.trim()}`,
+        Authorization: `Bearer ${configuration.key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: openAiConfiguration().model,
+        model: configuration.model,
         store: false,
         max_output_tokens: 1200,
         instructions:

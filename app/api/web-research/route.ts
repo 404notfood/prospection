@@ -5,9 +5,10 @@ import { googleResearchConfigured, researchBusiness } from "@/lib/server/web-res
 import { startResearch, finishResearch } from "@/lib/server/research-lock";
 
 export async function GET() {
-  if (!(await getSession())) return Response.json({ error: "Connexion requise." }, { status: 401 });
+  const session = await getSession();
+  if (!session) return Response.json({ error: "Connexion requise." }, { status: 401 });
   return Response.json(
-    { configured: googleResearchConfigured() },
+    { configured: await googleResearchConfigured(session.user.id) },
     {
       headers: { "Cache-Control": "no-store" },
     },
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
       { status: 429 },
     );
   try {
-    return Response.json(await researchBusiness(parsed.data));
+    return Response.json(await researchBusiness(parsed.data, undefined, session.user.id));
   } catch (error) {
     return Response.json(
       {

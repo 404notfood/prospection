@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { openAiConfiguration } from "./ai-research";
+import { apiCredentials } from "./api-credentials";
 import { reserveAiCall } from "./ai-usage";
 
 const schema = z.object({
@@ -8,15 +8,15 @@ const schema = z.object({
   ),
 });
 export async function resolveActivities(activities: string[], ownerId?: string) {
-  const configuration = openAiConfiguration();
-  if (!configuration.configured) return null;
+  const configuration = await apiCredentials("openai", ownerId);
+  if (!configuration.key) return null;
   await reserveAiCall(ownerId);
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     cache: "no-store",
     signal: AbortSignal.timeout(25000),
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY!.trim()}`,
+      Authorization: `Bearer ${configuration.key}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

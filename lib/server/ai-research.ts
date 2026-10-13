@@ -9,12 +9,10 @@ import {
 } from "@/lib/domain/ai-research";
 import type { Prospect } from "@/lib/domain/schema";
 import { reserveAiCall } from "./ai-usage";
+import { apiCredentials, connectionConfiguration } from "./api-credentials";
 
-export function openAiConfiguration() {
-  return {
-    configured: !!process.env.OPENAI_API_KEY?.trim(),
-    model: process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini",
-  };
+export function openAiConfiguration(ownerId?: string) {
+  return connectionConfiguration("openai", ownerId);
 }
 
 const generatedResult = z.object({
@@ -90,9 +88,9 @@ function specificGoogleListing(value: string) {
 export async function researchWithAi(identities: ResearchIdentity[], ownerId?: string) {
   if (!identities.length || identities.length > 5)
     throw new Error("Analyse IA limitée à 1–5 entreprises par appel.");
-  const configuration = openAiConfiguration();
-  if (!configuration.configured)
-    throw new Error("OpenAI n’est pas configuré. Ajoutez OPENAI_API_KEY sur le serveur.");
+  const configuration = await apiCredentials("openai", ownerId);
+  if (!configuration.key)
+    throw new Error("OpenAI n’est pas configuré. Enregistrez la clé dans les paramètres.");
   let response: Response;
   await reserveAiCall(ownerId);
   try {
@@ -101,7 +99,7 @@ export async function researchWithAi(identities: ResearchIdentity[], ownerId?: s
       cache: "no-store",
       signal: AbortSignal.timeout(25000),
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY!.trim()}`,
+        Authorization: `Bearer ${configuration.key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -3,6 +3,7 @@ import { webUrl } from "@/lib/domain/urls";
 import { applyWebCandidate, type WebCandidate } from "@/lib/domain/web-research";
 import type { Prospect } from "@/lib/domain/schema";
 import { verification } from "@/lib/domain/verification";
+import { apiCredentials } from "./api-credentials";
 
 const placeSchema = z.object({
   id: z.string(),
@@ -21,18 +22,19 @@ const normalize = (value: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-export function googleResearchConfigured() {
-  return !!process.env.GOOGLE_PLACES_API_KEY?.trim();
+export async function googleResearchConfigured(ownerId?: string) {
+  return !!(await apiCredentials("google", ownerId)).key;
 }
 
 export async function researchBusiness(
   prospect: Pick<Prospect, "name" | "city" | "address">,
   signal?: AbortSignal,
+  ownerId?: string,
 ) {
-  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
+  const { key } = await apiCredentials("google", ownerId);
   if (!key)
     throw new Error(
-      "Google Places n’est pas configuré. Ajoutez la clé sur le serveur ; les recherches manuelles restent disponibles.",
+      "Google Places n’est pas configuré. Enregistrez la clé dans les paramètres ; les recherches manuelles restent disponibles.",
     );
   const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
@@ -86,7 +88,7 @@ export async function researchBusiness(
   return { candidates, match: exact.length === 1 ? exact[0] : null };
 }
 
-export async function enrichProspects(prospects: Prospect[]) {
+export async function enrichProspects(prospects: Prospect[], ownerId?: string) {
   let failed = 0;
   let ambiguous = 0;
   const enriched: Prospect[] = [];
@@ -102,7 +104,7 @@ export async function enrichProspects(prospects: Prospect[]) {
     const batch = await Promise.all(
       prospects.slice(index, index + 3).map(async (prospect) => {
         try {
-          const { match, candidates } = await researchBusiness(prospect, deadline);
+          const { match, candidates } = await researchBusiness(prospect, deadline, ownerId);
           if (!match) {
             ambiguous++;
             return {

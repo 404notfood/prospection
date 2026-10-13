@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { FormField } from "@/components/shared/form-field";
 import { ExternalLink } from "@/components/shared/external-link";
+import { ApiKeyForm, useApiConnection } from "./api-key-form";
 
 export function OpenAiConnection({
   enabled,
@@ -16,22 +16,7 @@ export function OpenAiConnection({
   onChange: (enabled: boolean) => void;
   onBatchSizeChange: (size: number) => void;
 }) {
-  const [configuration, setConfiguration] = useState<{ configured: boolean; model: string } | null>(
-    null,
-  );
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/ai-research", { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Connexion indisponible");
-        setConfiguration(await response.json());
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
-      });
-    return () => controller.abort();
-  }, []);
+  const { configuration, setConfiguration, failed } = useApiConnection("openai");
   return (
     <div className="mt-5 space-y-3 border-t pt-5">
       <div className="flex items-center justify-between gap-3">
@@ -52,8 +37,9 @@ export function OpenAiConnection({
             ? "Vérification de la configuration…"
             : configuration.configured
               ? `Clé détectée · modèle ${configuration.model}. L’activation lance une recherche web IA sur les nouveaux prospects et affiche des propositions avec leurs sources.`
-              : "Créez une clé API dans votre projet OpenAI, configurez la facturation API, puis ajoutez OPENAI_API_KEY dans l’environnement du serveur et redémarrez l’application."}
+              : "Créez une clé dans votre projet OpenAI, configurez la facturation API, puis enregistrez-la ci-dessous."}
       </p>
+      <ApiKeyForm provider="openai" configuration={configuration} onSaved={setConfiguration} />
       <p className="text-[10px] text-muted-foreground">
         Les appels et recherches web utilisent votre crédit API. L’abonnement ChatGPT est séparé.
         L’identité et les constats professionnels utiles à la recherche et aux brouillons sont

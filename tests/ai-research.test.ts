@@ -60,7 +60,7 @@ test("OpenAI recherche avec des sources, filtre les URL inventées et conserve l
   let requestBody: Record<string, unknown> = {};
   try {
     delete process.env.OPENAI_API_KEY;
-    assert.equal(openAiConfiguration().configured, false);
+    assert.equal((await openAiConfiguration()).configured, false);
     await assert.rejects(() => researchWithAi([identity]), /pas configuré/);
     process.env.OPENAI_API_KEY = "test-only-openai-key";
     process.env.OPENAI_MODEL = "gpt-4.1-mini";

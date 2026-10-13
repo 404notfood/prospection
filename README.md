@@ -79,6 +79,33 @@ configurée ensuite. Conserver la clé `BACKUP_ENCRYPTION_KEY` pour les restaure
 Avant une mise à jour faisant évoluer le schéma, effectuer une sauvegarde valide.
 Le générateur conserve un dépôt déjà cloné : les `git pull` restent manuels.
 
+### Réparer des erreurs de chargement après un build
+
+Des erreurs `ChunkLoadError` ou `MODULE_NOT_FOUND` dans `.next/server/chunks`,
+avec des fichiers JavaScript renvoyant HTTP 500, indiquent que le serveur ne
+retrouve plus les fichiers compilés qu’il attend. Une recompilation dans le
+dossier d’un serveur encore actif peut produire ce décalage. Le message MIME
+`text/plain` correspond alors à la réponse d’erreur, pas au type des scripts.
+
+Sur le VPS configuré ci-dessus, arrêter le service **avant** de reconstruire :
+
+```bash
+sudo systemctl stop prospection &&
+sudo -u prospection -H bash -lc 'cd /home/prospection/app && npm run build' &&
+sudo systemctl start prospection &&
+sudo systemctl --no-pager --full status prospection
+```
+
+Le redémarrage a lieu uniquement si le build réussit. Cette procédure conserve
+la configuration et les données. Ensuite, recharger complètement le navigateur
+avec `Ctrl+F5`. Si le build échoue, corriger son erreur avant de relancer le
+service. Si l’erreur persiste après un build réussi et un redémarrage, consulter
+`sudo journalctl -u prospection --since "5 minutes ago" --no-pager -n 100`.
+
+Pour les mises à jour dans ce même dossier, arrêter aussi le service avant
+`git pull`, `npm ci`, les contrôles et le build, puis démarrer après leur réussite.
+Ne pas remplacer ou supprimer `.next` pendant que le service tourne.
+
 ## Démarrage local
 
 ```bash
@@ -148,10 +175,11 @@ Pour automatiser :
 
 1. Créez un projet Google Cloud et activez **Places API (New)** avec la facturation.
 2. Créez une clé restreinte à cette API et, en production, aux IP du serveur.
-3. Ajoutez `GOOGLE_PLACES_API_KEY` à `.env.local` ou à l’environnement de production.
-   Ne publiez jamais cette clé et n’utilisez pas le préfixe `NEXT_PUBLIC_`.
-4. Redémarrez l’application. Dans **Paramètres → Vos connexions**, activez
-   **Sites et fiches Google**, puis enregistrez.
+3. Dans **Paramètres → Vos connexions → Sites et fiches Google**, collez la clé
+   dans le champ **Clé API Google Places**, puis cliquez sur **Enregistrer la clé**.
+4. Utilisez **Vérifier la connexion**, puis activez **Sites et fiches Google** et
+   enregistrez les paramètres. La vérification effectue une requête Places qui
+   utilise votre quota Google. Aucun redémarrage n’est nécessaire après la saisie.
 
 Chaque nouveau prospect unique est recherché par nom, adresse et ville (au plus
 trois appels simultanés). Les appels consomment le quota Google et peuvent être
@@ -167,17 +195,30 @@ Documentation : [Text Search (New)](https://developers.google.com/maps/documenta
 ### Recherche web avec OpenAI
 
 Créez une clé de projet dans [OpenAI Platform](https://platform.openai.com/api-keys),
-configurez la facturation API, puis ajoutez `OPENAI_API_KEY` dans `.env.local` ou
-l’environnement de production. `OPENAI_MODEL` choisit le modèle compatible
-Responses, recherche web et sorties structurées (`gpt-4.1-mini` par défaut).
-Gardez la clé privée côté serveur et redémarrez l’application. L’abonnement
-ChatGPT et la facturation de l’API sont distincts.
+configurez la facturation API, puis collez-la dans **Paramètres → Vos connexions →
+Recherche avec OpenAI → Clé API OpenAI** et cliquez sur **Enregistrer la clé**.
+Le champ **Modèle OpenAI** choisit le modèle compatible Responses, recherche web
+et sorties structurées (`gpt-4.1-mini` par défaut). **Vérifier la connexion**
+contrôle l’authentification et l’accès au modèle, sans lancer de génération ;
+les recherches nécessitent aussi du crédit et les permissions Responses.
+L’abonnement ChatGPT et la facturation de l’API sont distincts.
 
 Dans **Paramètres → Vos connexions**, activez **Recherche avec OpenAI** et réglez
 le nombre de prospects analysés par lot (1–5, 3 par défaut), puis enregistrez.
 Une recherche web accompagne alors la découverte des nouveaux prospects.
 Les autres prospects peuvent être recherchés depuis **Rechercher avec l’IA**
 dans leur fiche. Google Places et OpenAI fonctionnent indépendamment.
+
+Les clés saisies sont chiffrées en base dans une table distincte des prospects,
+avec AES-256-GCM et une clé dérivée de `BETTER_AUTH_SECRET`. Elles sont propres
+au compte, ne sont jamais réaffichées et restent exclues des exports JSON/CSV.
+Le worker lit les nouvelles valeurs sans redémarrage. Conserver le secret
+d’authentification pour restaurer les clés ; après sa rotation, les saisir à
+nouveau. Les sauvegardes complètes de la base contiennent les clés chiffrées.
+**Supprimer la clé** supprime la valeur du compte et rétablit la clé du serveur
+si elle existe. Les variables `OPENAI_API_KEY`, `OPENAI_MODEL` et
+`GOOGLE_PLACES_API_KEY` restent une alternative ; leurs modifications nécessitent
+un redémarrage. Ne jamais utiliser `NEXT_PUBLIC_` pour une clé secrète.
 
 L’IA reçoit l’identité professionnelle (nom, activité, ville, adresse, SIREN et
 site connu) et les faits vérifiés nécessaires à la rédaction ; les notes privées

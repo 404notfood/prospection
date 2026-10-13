@@ -53,8 +53,8 @@ export async function POST(request: Request) {
       ? enrichProspectsWithAi(result.prospects, data.settings.aiBatchSize, session.user.id)
       : null;
     if (data.settings.webResearchEnabled) {
-      if (googleResearchConfigured()) {
-        const enriched = await enrichProspects(result.prospects);
+      if (await googleResearchConfigured(session.user.id)) {
+        const enriched = await enrichProspects(result.prospects, session.user.id);
         result.prospects = enriched.prospects;
         result.warnings.push(...enriched.warnings);
       } else

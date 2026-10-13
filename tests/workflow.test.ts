@@ -27,6 +27,7 @@ import {
 } from "../lib/server/jobs";
 import { runPipeline } from "../lib/server/pipeline";
 import { scheduleDueWork } from "../lib/server/scheduler";
+import { saveApiCredentials } from "../lib/server/api-credentials";
 
 test("Le site et Google ont des états indépendants ; une ambiguïté ou une seule source Google ne qualifie pas", () => {
   const campaign = fixtureWorkspace().campaigns[0];
@@ -124,11 +125,13 @@ test("La file persiste les parcours, isole les comptes, reprend les étapes et e
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     GOOGLE_PLACES_API_KEY: process.env.GOOGLE_PLACES_API_KEY,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
   };
   process.env.SQLITE_PATH = join(directory, "workflow.sqlite");
   process.env.DATABASE_URL = "";
   process.env.OPENAI_API_KEY = "test-only-openai";
   process.env.GOOGLE_PLACES_API_KEY = "test-only-google";
+  process.env.BETTER_AUTH_SECRET = "test-credential-encryption-secret-only";
   const data = fixtureWorkspace();
   data.campaigns = [data.campaigns[0]];
   data.events = [];
@@ -160,7 +163,11 @@ test("La file persiste les parcours, isole les comptes, reprend les étapes et e
   globalThis.fetch = (async (url, options) => {
     destinations.push(String(url));
     const body = JSON.parse(options!.body as string);
-    if (String(url).includes("places.googleapis.com"))
+    if (String(url).includes("places.googleapis.com")) {
+      assert.equal(
+        (options!.headers as Record<string, string>)["X-Goog-Api-Key"],
+        "saved-google-key-only",
+      );
       return Response.json({
         places: body.textQuery.includes("avec site")
           ? [
@@ -175,6 +182,11 @@ test("La file persiste les parcours, isole les comptes, reprend les étapes et e
             ]
           : [],
       });
+    }
+    assert.equal(
+      (options!.headers as Record<string, string>).Authorization,
+      "Bearer saved-openai-key-only",
+    );
     if (body.tools) {
       const [identity] = JSON.parse(body.input);
       const sources = [
@@ -233,6 +245,8 @@ test("La file persiste les parcours, isole les comptes, reprend les étapes et e
     });
   }) as typeof fetch;
   try {
+    await saveApiCredentials("owner", "openai", "saved-openai-key-only", "gpt-4.1-mini");
+    await saveApiCredentials("owner", "google", "saved-google-key-only");
     await saveWorkspace("owner", data, 0);
     const queued = await enqueueJob("owner", data.campaigns[0], "process");
     assert.equal((await enqueueJob("owner", data.campaigns[0], "process")).id, queued.id);

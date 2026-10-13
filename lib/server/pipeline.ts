@@ -38,7 +38,7 @@ export async function runPipeline(job: AutomationJob, token: string) {
       job.pages === 0 &&
       !activityFilter(initial.campaign).codes &&
       initial.data.settings.aiResearchEnabled &&
-      openAiConfiguration().configured &&
+      (await openAiConfiguration(job.ownerId)).configured &&
       job.aiCalls < job.aiLimit
     ) {
       job.aiCalls++;
@@ -162,17 +162,17 @@ export async function runPipeline(job: AutomationJob, token: string) {
       if (next.status === "review") {
         if (
           context.data.settings.webResearchEnabled &&
-          googleResearchConfigured() &&
+          (await googleResearchConfigured(job.ownerId)) &&
           !job.googleUnavailable
         ) {
-          const google = await enrichProspects([next]);
+          const google = await enrichProspects([next], job.ownerId);
           next = google.prospects[0];
           job.warnings.push(...google.warnings);
           if (next.googleVerification.status === "error") job.googleUnavailable = true;
         }
         if (
           context.data.settings.aiResearchEnabled &&
-          openAiConfiguration().configured &&
+          (await openAiConfiguration(job.ownerId)).configured &&
           job.aiCalls < job.aiLimit &&
           !job.aiUnavailable
         ) {
@@ -205,7 +205,7 @@ export async function runPipeline(job: AutomationJob, token: string) {
       if (context.campaign.automation.prepareMessages && canContact(next) && !next.emailDraft) {
         const useAi =
           context.data.settings.aiResearchEnabled &&
-          openAiConfiguration().configured &&
+          (await openAiConfiguration(job.ownerId)).configured &&
           job.aiCalls < job.aiLimit &&
           !job.aiUnavailable;
         if (useAi) {
